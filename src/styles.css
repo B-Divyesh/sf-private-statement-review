@@ -203,6 +203,7 @@ h3 { line-height: 1.25; }
 .site-footer { padding: 32px clamp(20px, 4vw, 64px) max(32px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px; border-top: 1px solid var(--rule); color: var(--muted); font-size: .8rem; }
 .site-footer p { margin: 0; display: flex; align-items: center; gap: 8px; }
 .site-footer nav { display: flex; gap: 24px; }
+.site-footer nav a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .site-footer .generation-note { justify-self: end; }
 
 .chapter-heading { max-width: 780px; margin: 0 auto 40px; text-align: center; }

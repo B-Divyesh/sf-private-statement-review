@@ -48,6 +48,8 @@ The app uses Vite and vanilla TypeScript. It has no runtime dependencies and loa
 ## Test and verify
 
 ```bash
+npm ci
+npm run lint
 npm test
 npm run build
 npm run preview -- --host 127.0.0.1

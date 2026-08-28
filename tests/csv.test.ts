@@ -30,6 +30,27 @@ describe("CSV import", () => {
     expect(result.transactions[0]?.date).toBe("2026-08-28");
   });
 
+  it("uses one detected date order for an entire DMY statement", () => {
+    const table = parseCsv("Date,Description,Amount,Category\n13/03/2026,RENT,-100,Home\n04/03/2026,GROCER,-20,Food");
+    const result = mapRows(table.rows, guessMapping(table.headers));
+    expect(result.errors).toEqual([]);
+    expect(result.transactions.map((item) => item.date)).toEqual(["2026-03-04", "2026-03-13"]);
+  });
+
+  it("skips impossible ISO calendar dates with the normal recovery message", () => {
+    const table = parseCsv("Date,Description,Amount\n2026-02-31,IMPOSSIBLE DATE,-9.99\n2026-02-28,VALID DATE,-1");
+    const result = mapRows(table.rows, guessMapping(table.headers));
+    expect(result.transactions.map((item) => item.date)).toEqual(["2026-02-28"]);
+    expect(result.errors).toEqual(["Row 2 was skipped because its date, description, or amount could not be read."]);
+  });
+
+  it("asks for a date order instead of guessing an all-ambiguous statement", () => {
+    const table = parseCsv("Date,Description,Amount\n04/03/2026,GROCER,-20");
+    const result = mapRows(table.rows, guessMapping(table.headers));
+    expect(result.transactions).toEqual([]);
+    expect(result.errors[0]).toMatch(/choose a date order/i);
+  });
+
   it("supports statements where a positive amount means spending", () => {
     const table = parseCsv("Date,Description,Amount\n2026-08-28,Market,12.50");
     const mapping = { ...guessMapping(table.headers), amountDirection: "expensesPositive" as const };

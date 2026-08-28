@@ -91,26 +91,51 @@ export function parseAmount(value: string): number | null {
   return negative ? -Math.abs(parsed) : parsed;
 }
 
+type DetectedDateFormat = "dmy" | "mdy" | null;
+
+function validIsoDate(year: number, month: number, day: number): string | null {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function detectDateFormat(rows: Record<string, string>[], dateColumn: string): { format: DetectedDateFormat; needsChoice: boolean } {
+  const detected = new Set<DetectedDateFormat>();
+  let ambiguous = false;
+  for (const row of rows) {
+    const match = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec((row[dateColumn] ?? "").trim());
+    if (!match) continue;
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    if (first > 12 && second <= 12) detected.add("dmy");
+    else if (second > 12 && first <= 12) detected.add("mdy");
+    else if (first <= 12 && second <= 12) ambiguous = true;
+  }
+  if (detected.size === 1) return { format: [...detected][0] ?? null, needsChoice: false };
+  return { format: null, needsChoice: ambiguous || detected.size > 1 };
+}
+
 function isoDate(value: string, format: ColumnMapping["dateFormat"]): string | null {
   const clean = value.trim();
-  const direct = /^\d{4}-\d{1,2}-\d{1,2}/.exec(clean);
+  const direct = /^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T\s])/.exec(clean);
   if (direct) {
-    const [year, month, day] = direct[0].split("-").map(Number);
-    if (year && month && day) return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    return validIsoDate(Number(direct[1]), Number(direct[2]), Number(direct[3]));
   }
-  const match = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/.exec(clean);
+  const yearFirst = /^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})$/.exec(clean);
+  if (yearFirst) {
+    return validIsoDate(Number(yearFirst[1]), Number(yearFirst[2]), Number(yearFirst[3]));
+  }
+  const match = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/.exec(clean);
   if (match) {
-    let first = Number(match[1]);
-    let second = Number(match[2]);
+    const first = Number(match[1]);
+    const second = Number(match[2]);
     let year = Number(match[3]);
     if (year < 100) year += 2000;
-    const useDmy = format === "dmy" || (format === "auto" && first > 12);
+    if (format === "auto") return null;
+    const useDmy = format === "dmy";
     const month = useDmy ? second : first;
     const day = useDmy ? first : second;
-    const date = new Date(Date.UTC(year, month - 1, day));
-    if (date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day) {
-      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    }
+    return validIsoDate(year, month, day);
   }
   const timestamp = Date.parse(clean);
   return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString().slice(0, 10);
@@ -134,8 +159,13 @@ export function mapRows(rows: Record<string, string>[], mapping: ColumnMapping):
   }
   const errors: string[] = [];
   const transactions: Transaction[] = [];
+  const detection = mapping.dateFormat === "auto" ? detectDateFormat(rows, mapping.date) : { format: null, needsChoice: false };
+  const dateFormat = detection.format ?? mapping.dateFormat;
+  if (detection.needsChoice) {
+    errors.push("Automatic date detection could not determine one day/month order for this statement. Choose a date order and import again.");
+  }
   rows.forEach((row, index) => {
-    const date = isoDate(row[mapping.date] ?? "", mapping.dateFormat);
+    const date = isoDate(row[mapping.date] ?? "", dateFormat);
     let amount: number | null = null;
     if (mapping.amount) {
       amount = parseAmount(row[mapping.amount] ?? "");

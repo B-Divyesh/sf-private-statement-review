@@ -16,7 +16,18 @@ try {
   assert.equal(await page.locator("h1").count(), 1);
   assert.equal(await page.locator("main").count(), 1);
   assert.equal(await page.locator("img:not([alt])").count(), 0);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  assert.equal(await page.locator("body").evaluate((body) => body.scrollWidth <= document.documentElement.clientWidth), true, "desktop layout must not overflow horizontally");
+  const desktopA11y = await new AxeBuilder({ page }).analyze();
+  assert.equal(desktopA11y.violations.filter((violation) => ["serious", "critical"].includes(violation.impact ?? "")).length, 0, JSON.stringify(desktopA11y.violations, null, 2));
+  await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.locator("body").evaluate((body) => body.scrollWidth <= document.documentElement.clientWidth), true, "390px layout must not overflow horizontally");
+  const footerTargets = await page.locator(".site-footer nav a").evaluateAll((links) => links.map((link) => {
+    const rect = link.getBoundingClientRect();
+    return { text: link.textContent?.trim(), width: rect.width, height: rect.height };
+  }));
+  assert.deepEqual(footerTargets.map((target) => target.text), ["Privacy", "Terms", "Source"]);
+  assert.equal(footerTargets.every((target) => target.width >= 44 && target.height >= 44), true, JSON.stringify(footerTargets));
   await page.keyboard.press("Tab");
   assert.equal(await page.locator(":focus").textContent(), "Skip to review");
   const landingA11y = await new AxeBuilder({ page }).analyze();

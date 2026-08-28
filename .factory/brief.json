@@ -1,0 +1,11 @@
+{
+  "slug": "private-statement-review",
+  "title": "Private Statement Review",
+  "territory": "utilities",
+  "user": "Privacy-conscious households who download bank CSVs and need a quick monthly review of cash flow and recurring charges without connecting an account to a financial-data intermediary.",
+  "smallest_useful_product": "Offline CSV importer with a remembered local mapping, merchant merge/split rules, recurring-charge candidates, month comparison, and exportable review checklist.",
+  "success_measure": "At least 60% of pilot users complete two monthly CSV reviews, with no transaction data leaving the browser, and identify one unexpected recurring charge or category change.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time",
+  "constraints": "Never transmit statements; redact values from diagnostics; preserve source CSV locally only on opt-in; no financial advice or institution credential handling."
+}

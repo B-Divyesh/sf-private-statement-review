@@ -1,5 +1,5 @@
-const VERSION = "psr-shell-v1";
-const ASSET_CACHE = "psr-assets-v1";
+const VERSION = "psr-shell-v4";
+const ASSET_CACHE = "psr-assets-v4";
 const SHELL = [
   "/",
   "/privacy/",
@@ -11,11 +11,20 @@ const SHELL = [
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
   "/art/ledger-garden-960.webp",
-  "/art/ledger-garden-1536.webp"
+  "/art/ledger-garden-1536.webp",
+  "/art/ledger-garden-960.avif",
+  "/art/ledger-garden-1536.avif"
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(VERSION).then((cache) => cache.addAll(SHELL)));
+  event.waitUntil(caches.open(VERSION).then(async (cache) => {
+    await cache.addAll(SHELL);
+    const home = await cache.match("/");
+    if (!home) return;
+    const markup = await home.text();
+    const builtAssets = [...markup.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((match) => match[1]);
+    if (builtAssets.length) await cache.addAll(builtAssets);
+  }));
 });
 
 self.addEventListener("activate", (event) => {
@@ -42,10 +51,8 @@ self.addEventListener("fetch", (event) => {
     }).catch(async () => (await caches.match(request)) || (await caches.match("/")) || caches.match("/offline.html")));
     return;
   }
-  if (["script", "style", "image", "font", "manifest"].includes(request.destination)) {
-    event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok) caches.open(ASSET_CACHE).then((cache) => cache.put(request, response.clone()));
-      return response;
-    })));
-  }
+  event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+    if (response.ok) caches.open(ASSET_CACHE).then((cache) => cache.put(request, response.clone()));
+    return response;
+  })));
 });

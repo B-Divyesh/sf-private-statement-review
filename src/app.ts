@@ -135,7 +135,8 @@ function hero(): string {
       </div>
       <figure class="hero-scene">
         <picture>
-          <source media="(max-width: 700px)" srcset="/art/ledger-garden-960.webp" />
+          <source type="image/avif" srcset="/art/ledger-garden-960.avif 960w, /art/ledger-garden-1536.avif 1536w" sizes="(max-width: 760px) 100vw, 58vw" />
+          <source type="image/webp" srcset="/art/ledger-garden-960.webp 960w, /art/ledger-garden-1536.webp 1536w" sizes="(max-width: 760px) 100vw, 58vw" />
           <img src="/art/ledger-garden-1536.webp" srcset="/art/ledger-garden-960.webp 960w, /art/ledger-garden-1536.webp 1536w" sizes="(max-width: 760px) 100vw, 58vw" width="1536" height="1024" alt="A folded paper statement winding through a miniature moonlit garden" fetchpriority="high" decoding="async" />
         </picture>
         <figcaption><span>01</span> A monthly ritual, not another budget to maintain.</figcaption>
@@ -177,6 +178,7 @@ function importView(): string {
         <label>Credit / money in<select name="credit">${optionList(draft.headers, mapping.credit)}</select></label>
         <label>Category (optional)<select name="category">${optionList(draft.headers, mapping.category)}</select></label>
         <label>Date order<select name="dateFormat"><option value="auto" ${mapping.dateFormat === "auto" ? "selected" : ""}>Detect automatically</option><option value="mdy" ${mapping.dateFormat === "mdy" ? "selected" : ""}>Month / day / year</option><option value="dmy" ${mapping.dateFormat === "dmy" ? "selected" : ""}>Day / month / year</option><option value="ymd" ${mapping.dateFormat === "ymd" ? "selected" : ""}>Year / month / day</option></select></label>
+        <label>Single amount sign<select name="amountDirection"><option value="expensesNegative" ${mapping.amountDirection !== "expensesPositive" ? "selected" : ""}>Negative means money out</option><option value="expensesPositive" ${mapping.amountDirection === "expensesPositive" ? "selected" : ""}>Positive means money out</option></select><span class="field-note">Ignored when debit/credit columns are used.</span></label>
       </div>
       <div class="preview-wrap" tabindex="0" role="region" aria-label="CSV preview"><table><caption>First ${preview.length} rows, shown exactly as read</caption><thead><tr>${currentDraft.headers.map((header) => `<th>${html(header)}</th>`).join("")}</tr></thead><tbody>${preview.map((row) => `<tr>${currentDraft.headers.map((header) => `<td>${html(row[header])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
       <label class="check-row ${!unlocked ? "is-locked" : ""}"><input type="checkbox" name="retain" ${!unlocked ? "disabled" : ""} /> <span><strong>Keep the original CSV on this device</strong><small>${unlocked ? "Optional. You can remove it later." : "Plus feature. Parsed review data is saved either way."}</small></span></label>
@@ -278,10 +280,10 @@ function noticeRegion(): string {
 
 function render(): void {
   const path = location.pathname.replace(/\/+$/, "") || "/";
-  if (path === "/privacy") root.innerHTML = legalPage("privacy");
-  else if (path === "/terms") root.innerHTML = legalPage("terms");
+  if (path === "/privacy") { document.title = "Privacy — Private Statement Review"; root.innerHTML = legalPage("privacy"); }
+  else if (path === "/terms") { document.title = "Terms — Private Statement Review"; root.innerHTML = legalPage("terms"); }
   else if (loading) root.innerHTML = `<main id="main" class="loading-screen"><div class="loading-moon" aria-hidden="true"></div><h1>Opening your private workspace…</h1><p>Reading only this device.</p></main>${noticeRegion()}`;
-  else root.innerHTML = `${header()}${view === "import" ? importView() : data.reviews.length && view === "review" ? workspace() : hero()}${footer()}${dialogs()}${noticeRegion()}`;
+  else { document.title = "Private Statement Review — Monthly clarity, kept on this device"; root.innerHTML = `${header()}${view === "import" ? importView() : data.reviews.length && view === "review" ? workspace() : hero()}${footer()}${dialogs()}${noticeRegion()}`; }
   updateNetworkStatus();
 }
 
@@ -290,7 +292,8 @@ function mappingFromForm(form: HTMLFormElement): ColumnMapping {
   return {
     date: String(formData.get("date") ?? ""), description: String(formData.get("description") ?? ""), amount: String(formData.get("amount") ?? ""),
     debit: String(formData.get("debit") ?? ""), credit: String(formData.get("credit") ?? ""), category: String(formData.get("category") ?? ""),
-    dateFormat: String(formData.get("dateFormat") ?? "auto") as ColumnMapping["dateFormat"]
+    dateFormat: String(formData.get("dateFormat") ?? "auto") as ColumnMapping["dateFormat"],
+    amountDirection: String(formData.get("amountDirection") ?? "expensesNegative") as ColumnMapping["amountDirection"]
   };
 }
 
@@ -354,8 +357,12 @@ function exportCsv(): void {
 
 async function importBackup(file: File): Promise<void> {
   try {
+    if (file.size > 20 * 1024 * 1024) throw new Error("That backup is over 20 MB. Choose a smaller Private Statement Review backup.");
     const parsed = JSON.parse(await file.text()) as AppData;
-    if (parsed.version !== 1 || !Array.isArray(parsed.reviews) || !Array.isArray(parsed.rules)) throw new Error("This is not a valid Private Statement Review backup.");
+    const validTransaction = (item: Transaction) => item && typeof item.id === "string" && typeof item.date === "string" && typeof item.description === "string" && typeof item.merchant === "string" && typeof item.amount === "number" && Number.isFinite(item.amount) && typeof item.category === "string" && Array.isArray(item.splits);
+    const validReview = (review: Review) => review && typeof review.id === "string" && typeof review.filename === "string" && Array.isArray(review.transactions) && review.transactions.every(validTransaction) && Array.isArray(review.checklist) && typeof review.notes === "string";
+    const validRule = (rule: MerchantRule) => rule && typeof rule.id === "string" && typeof rule.match === "string" && typeof rule.merchant === "string" && typeof rule.category === "string";
+    if (parsed.version !== 1 || !Array.isArray(parsed.reviews) || !parsed.reviews.every(validReview) || !Array.isArray(parsed.rules) || !parsed.rules.every(validRule)) throw new Error("This is not a valid Private Statement Review backup.");
     data = parsed;
     await saveData(data);
     view = data.reviews.length ? "review" : "home";
@@ -405,6 +412,7 @@ root.addEventListener("click", (event) => {
   if (button.dataset.tab) { tab = button.dataset.tab as Tab; render(); document.querySelector(".panel")?.scrollIntoView({ block: "start" }); }
   if (button.dataset.removeRule) {
     const removed = data.rules.find((rule) => rule.id === button.dataset.removeRule);
+    if (removed && !window.confirm(`Remove the rule for “${removed.match}”? Existing statement rows stay intact.`)) return;
     data.rules = data.rules.filter((rule) => rule.id !== button.dataset.removeRule);
     queueSave("Merchant rule removed"); render();
     if (removed) announce(`Removed rule for ${removed.match}`);
@@ -414,6 +422,8 @@ root.addEventListener("click", (event) => {
     button.textContent = "Added ✓";
   }
   if (button.dataset.removeCheck) {
+    const item = data.reviews.flatMap((review) => review.checklist).find((entry) => entry.id === button.dataset.removeCheck);
+    if (item && !window.confirm(`Remove “${item.label}” from this checklist?`)) return;
     data.reviews.forEach((review) => { review.checklist = review.checklist.filter((item) => item.id !== button.dataset.removeCheck); });
     queueSave("Checklist item removed"); render();
   }

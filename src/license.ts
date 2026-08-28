@@ -1,5 +1,5 @@
 export const PRODUCT_SLUG = "private-statement-review";
-export const BILLING_BASE = "https://api.sociobot.in/api/v1";
+export const BILLING_BASE = import.meta.env.VITE_BILLING_BASE_URL ?? "https://api.sociobot.in/api/v1";
 const LICENSE_KEY = `sb_license:${PRODUCT_SLUG}`;
 const VERDICT_KEY = `sb_license_verdict:${PRODUCT_SLUG}`;
 const DAY = 86_400_000;

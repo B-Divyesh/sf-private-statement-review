@@ -7,7 +7,7 @@
   --moss: #315c46;
   --moss-ink: #ffffff;
   --moss-soft: #dce8dc;
-  --coral: #b94331;
+  --coral: #a83b2b;
   --ochre: #8a5a0c;
   --success: #236a47;
   --danger: #9c2d29;
@@ -188,8 +188,8 @@ h3 { line-height: 1.25; }
 
 .hero-scene { position: relative; margin: 0 -12vw 0 0; animation: scene-in 420ms ease-out both; }
 .hero-scene img { width: 100%; min-height: 500px; object-fit: cover; object-position: center; border-radius: 140px 0 0 20px; box-shadow: var(--shadow); }
-.hero-scene::before { content: "LOCAL / 001"; position: absolute; z-index: 1; top: 22px; right: 24px; padding: 7px 10px; border: 1px solid rgb(255 255 255 / 45%); color: #fffdf7; font-size: .68rem; letter-spacing: .15em; }
-.hero-scene figcaption { max-width: 420px; margin: -30px 28px 0 auto; padding: 22px 24px; position: relative; display: flex; gap: 16px; background: var(--surface); box-shadow: var(--shadow); color: var(--muted); }
+.hero-scene::before { content: "LOCAL / 001"; position: absolute; z-index: 1; top: 22px; right: calc(12vw + 24px); padding: 7px 10px; border: 1px solid rgb(255 255 255 / 45%); color: #fffdf7; font-size: .68rem; letter-spacing: .15em; }
+.hero-scene figcaption { max-width: 420px; margin: -30px calc(12vw + 28px) 0 auto; padding: 22px 24px; position: relative; display: flex; gap: 16px; background: var(--surface); box-shadow: var(--shadow); color: var(--muted); }
 .hero-scene figcaption span { color: var(--coral); font-family: var(--serif); font-size: 1.5rem; }
 @keyframes scene-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -251,7 +251,7 @@ th { background: var(--moss-soft); font-size: .78rem; letter-spacing: .04em; }
 .review-tabs button span { color: var(--coral); font-family: var(--serif); }
 .review-tabs button[aria-current="step"] { background: var(--moss-soft); color: var(--ink); font-weight: 800; }
 .panel { animation: panel-in 180ms ease-out both; }
-@keyframes panel-in { from { opacity: .1; } to { opacity: 1; } }
+@keyframes panel-in { from { transform: translateY(4px); } to { transform: translateY(0); } }
 .panel-heading { margin-bottom: 32px; display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; }
 .panel-heading h2 { margin-bottom: 12px; }
 .panel-heading p:last-child { max-width: 760px; margin-bottom: 0; color: var(--muted); }
@@ -402,6 +402,7 @@ summary { min-height: 44px; width: fit-content; display: flex; align-items: cent
   .hero h1 { font-size: clamp(2.8rem, 13vw, 4rem); }
   .hero-lede { font-size: 1.05rem; }
   .hero-scene { margin: 12px -20px 0 0; }
+  .hero-scene::before { right: 24px; }
   .hero-scene img { min-height: 390px; border-radius: 90px 0 0 14px; object-position: 62% center; }
   .hero-scene figcaption { margin: -18px 16px 0 30px; }
   .how-it-works { margin-bottom: 64px; padding: 48px 0; }

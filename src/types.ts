@@ -6,6 +6,7 @@ export type ColumnMapping = {
   credit: string;
   category: string;
   dateFormat: "auto" | "mdy" | "dmy" | "ymd";
+  amountDirection: "expensesNegative" | "expensesPositive";
 };
 
 export type Split = { id: string; label: string; amount: number };

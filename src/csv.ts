@@ -76,7 +76,8 @@ export function guessMapping(headers: string[], previous?: ColumnMapping): Colum
     debit: find("debit"),
     credit: find("credit"),
     category: find("category"),
-    dateFormat: previous?.dateFormat ?? "auto"
+    dateFormat: previous?.dateFormat ?? "auto",
+    amountDirection: previous?.amountDirection ?? "expensesNegative"
   };
 }
 
@@ -136,7 +137,10 @@ export function mapRows(rows: Record<string, string>[], mapping: ColumnMapping):
   rows.forEach((row, index) => {
     const date = isoDate(row[mapping.date] ?? "", mapping.dateFormat);
     let amount: number | null = null;
-    if (mapping.amount) amount = parseAmount(row[mapping.amount] ?? "");
+    if (mapping.amount) {
+      amount = parseAmount(row[mapping.amount] ?? "");
+      if (amount !== null && mapping.amountDirection === "expensesPositive") amount *= -1;
+    }
     else {
       const debit = parseAmount(row[mapping.debit] ?? "") ?? 0;
       const credit = parseAmount(row[mapping.credit] ?? "") ?? 0;

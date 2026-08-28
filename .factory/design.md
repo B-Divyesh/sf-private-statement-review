@@ -18,7 +18,7 @@ The palette comes from an evening desk, marked-up statements, and a small pool o
 | `--surface` | `#fffdf7` | `#202822` | Raised sheets |
 | `--moss` | `#315c46` | `#9dccad` | Primary action, privacy state |
 | `--moss-ink` | `#ffffff` | `#102018` | Accent contrast |
-| `--coral` | `#c84f3a` | `#ff9a84` | Attention/flags |
+| `--coral` | `#a83b2b` | `#ff9a84` | Attention/flags |
 | `--ochre` | `#9a6714` | `#f3c66e` | Warnings/change |
 | `--success` | `#28734e` | `#89d5ac` | Complete state |
 | `--danger` | `#a3312d` | `#ff9e95` | Errors/destructive action |
@@ -52,8 +52,8 @@ Physical logic only: the hero paper scene rises 12 px and fades in over 420 ms; 
 
 ## Asset plan and provenance
 
-- `public/art/ledger-garden.webp` and `.avif`: original generated hero, with explicit intrinsic dimensions and responsive crop; WebP remains under 300 KB.
-- `public/art/ledger-garden.png`: generation source retained under `assets/src/`, not shipped in the built app.
+- `public/art/ledger-garden-{960,1536}.{avif,webp}`: responsive AVIF with WebP fallback, explicit intrinsic dimensions, and a mobile source under 60 KB.
+- `assets/src/ledger-garden.png`: generation source retained for provenance and future edits, not shipped in the built app.
 - App icons and small UI marks are hand-authored SVGs using the moon/ledger motif; decorative only where labels already carry meaning.
 
 ### Hero prompt sheet

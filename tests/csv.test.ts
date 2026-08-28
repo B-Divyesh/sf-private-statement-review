@@ -30,6 +30,12 @@ describe("CSV import", () => {
     expect(result.transactions[0]?.date).toBe("2026-08-28");
   });
 
+  it("supports statements where a positive amount means spending", () => {
+    const table = parseCsv("Date,Description,Amount\n2026-08-28,Market,12.50");
+    const mapping = { ...guessMapping(table.headers), amountDirection: "expensesPositive" as const };
+    expect(mapRows(table.rows, mapping).transactions[0]?.amount).toBe(-12.5);
+  });
+
   it("normalizes volatile statement codes without cloud processing", () => {
     expect(normalizeMerchant("POS STREAMCO 483920 CARD")).toBe("STREAMCO");
   });

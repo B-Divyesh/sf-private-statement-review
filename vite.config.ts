@@ -1,16 +1,23 @@
 import { defineConfig } from "vite";
-import { resolve } from "node:path";
+import { viteSingleFile } from "vite-plugin-singlefile";
+import { copyFile, mkdir } from "node:fs/promises";
 
 export default defineConfig({
-  build: {
-    target: "es2022",
-    sourcemap: true,
-    rollupOptions: {
-      input: {
-        main: resolve(import.meta.dirname, "index.html"),
-        privacy: resolve(import.meta.dirname, "privacy/index.html"),
-        terms: resolve(import.meta.dirname, "terms/index.html")
+  plugins: [
+    viteSingleFile(),
+    {
+      name: "copy-legal-routes",
+      apply: "build",
+      async closeBundle() {
+        await Promise.all(["privacy", "terms"].map(async (route) => {
+          await mkdir(`dist/${route}`, { recursive: true });
+          await copyFile("dist/index.html", `dist/${route}/index.html`);
+        }));
       }
     }
+  ],
+  build: {
+    target: "es2022",
+    sourcemap: false
   }
 });

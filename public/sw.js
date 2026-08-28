@@ -1,5 +1,5 @@
-const VERSION = "psr-shell-v4";
-const ASSET_CACHE = "psr-assets-v4";
+const VERSION = "psr-shell-v5";
+const ASSET_CACHE = "psr-assets-v5";
 const SHELL = [
   "/",
   "/privacy/",

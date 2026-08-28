@@ -22,6 +22,7 @@ let unlocked = cachedUnlock();
 let notice = "";
 let noticeTimer = 0;
 let saveTimer = 0;
+let acceptingUpdate = false;
 
 const html = (value: unknown): string => String(value ?? "").replace(/[&<>"']/g, (character) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
@@ -408,7 +409,10 @@ root.addEventListener("click", (event) => {
   if (action === "export-checklist") exportChecklist();
   if (action === "export-csv") exportCsv();
   if (action === "export-backup") { download(`private-statement-review-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), "application/json"); announce("Private backup exported"); }
-  if (action === "update-app") navigator.serviceWorker?.getRegistration().then((registration) => registration?.waiting?.postMessage({ type: "SKIP_WAITING" }));
+  if (action === "update-app") {
+    acceptingUpdate = true;
+    void navigator.serviceWorker?.getRegistration().then((registration) => registration?.waiting?.postMessage({ type: "SKIP_WAITING" }));
+  }
   if (button.dataset.tab) { tab = button.dataset.tab as Tab; render(); document.querySelector(".panel")?.scrollIntoView({ block: "start" }); }
   if (button.dataset.removeRule) {
     const removed = data.rules.find((rule) => rule.id === button.dataset.removeRule);
@@ -542,7 +546,7 @@ function registerServiceWorker(): void {
         }
       });
     });
-    navigator.serviceWorker.addEventListener("controllerchange", () => location.reload());
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (acceptingUpdate) location.reload(); });
   }).catch(() => { /* app remains usable without installation */ });
 }
 

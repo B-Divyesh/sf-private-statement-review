@@ -1,10 +1,10 @@
 [
   {
     "id": "csv-import-formats",
-    "claim": "Imports signed-amount CSVs and CSVs with separate debit and credit columns.",
+    "claim": "Imports CSV files up to 10 MB with signed amounts or separate debit and credit columns.",
     "where": "README, import help",
     "test": "npm run test:claims -- --grep @claim:csv-import-formats",
-    "sandbox": "Fresh browser context at /demo; assert sample signed totals, then import a debit/credit fixture and assert its totals."
+    "sandbox": "Fresh browser context at /demo; assert signed totals, import a debit/credit fixture, then reject a file larger than 10 MB."
   },
   {
     "id": "mapping-memory",

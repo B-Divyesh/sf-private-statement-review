@@ -44,6 +44,9 @@ test("@claim:csv-import-formats imports signed amounts and separate debit and cr
   await page.getByRole("button", { name: /Import 2 rows/ }).click();
   await expect(page.locator(".summary-strip")).toContainText("1,800.00");
   await expect(page.locator(".summary-strip")).toContainText("42.50");
+  await page.getByRole("button", { name: /Import another month/ }).click();
+  await page.locator("#csv-file").setInputFiles({ name: "too-large.csv", mimeType: "text/csv", buffer: Buffer.alloc(10 * 1024 * 1024 + 1, 65) });
+  await expect(page.locator("#live-notice")).toContainText("over 10 MB");
 });
 
 test("@claim:mapping-memory remembers column, date, and amount choices", async ({ page }) => {
@@ -217,9 +220,14 @@ test("@claim:sample-demo opens populated output and never reads or changes the r
   expect(real).toContain("real-sentinel.csv");
   expect(real).not.toContain("Changed only in demo");
   expect(demo).toContain("Changed only in demo");
+  await page.getByRole("button", { name: "Reset demo" }).click();
+  await openTab(page, /Finish/);
+  await expect(page.locator("#review-notes")).toHaveValue("Check the higher energy bill and the café purchase before closing July.");
+  expect(JSON.stringify(await readDatabase(page, "private-statement-review"))).toContain("real-sentinel.csv");
   await page.getByRole("button", { name: "Start for real" }).click();
   await expect(page.getByText("real-sentinel.csv")).toBeVisible();
   expect(await readDatabase(page, "private-statement-review")).not.toBeNull();
+  expect(await page.evaluate(() => indexedDB.databases().then((databases) => databases.some((database) => database.name === "private-statement-review-demo")))).toBe(false);
 });
 
 test("@claim:no-bank-connection completes a sample review without credentials or a bank request", async ({ page }) => {

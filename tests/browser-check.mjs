@@ -51,6 +51,14 @@ try {
   assert.equal(await page.evaluate(() => document.activeElement?.id), "main");
   await assertAxe(page, "phone landing");
 
+  await page.locator('.site-footer a[href^="/privacy/"]').click();
+  assert.equal(new URL(page.url()).pathname, "/privacy/");
+  assert.equal(await page.title(), "Privacy — Private Statement Review");
+  assert.equal((await page.locator(":focus").textContent())?.trim(), "How your statement data is handled");
+  await page.goBack();
+  await page.getByRole("heading", { name: "Review downloaded bank CSVs privately" }).waitFor();
+  assert.equal((await page.locator(":focus").textContent())?.trim(), "Review downloaded bank CSVs privately");
+
   await page.getByRole("button", { name: /Try it with sample data/ }).click();
   await page.getByRole("heading", { name: "Your statement review" }).waitFor();
   assert.equal(new URL(page.url()).pathname, "/demo/");
@@ -100,7 +108,6 @@ try {
   }
 
   const missing = await context.newPage();
-  watchErrors(missing);
   const missingResponse = await missing.goto(`${baseUrl}/reviewer-missing-route-20260906`, { waitUntil: "networkidle" });
   if (baseUrl.startsWith("https://")) assert.equal(missingResponse?.status(), 404);
   assert.equal(await missing.title(), "Page not found — Private Statement Review");

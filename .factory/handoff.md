@@ -1,38 +1,97 @@
-# Review handoff — downloaded bank CSV review
+# Repair 2 handoff — Private Statement Review
 
-**Result: FAIL**
+**Result: repaired and deployed; one external billing registration remains**
 
-- Review: `.factory/review-1.md`
-- Implementation candidate: `54861a42369db2fc172079b93f0e1956efb573e6`
-- Documentation SHA reviewed: `73e0d4a9231c360266e133426871281d554ee045`
 - Live URL: <https://private-statement-review.sociobot.in>
-- Reviewed: 2026-09-06 UTC
+- Implementation SHA deployed: `724c86492e39c02737545aad5cdf7f41f0ec8c3e`
+- Previous review SHA: `bc6048a4425b5b62d0563d333badb628487302c0`
+- Deployment completed: 6 September 2026 UTC
+- Documentation: this handoff was added after the implementation deployment, so the final report-only commit is newer than the deployed SHA.
 
-Review 1 found 8 defects and 24 public claim groups without declared claim tests. The two P1 defects are the missing isolated one-click demo and the live Plus checkout returning HTTP 404. P2 defects cover the absent claims registry, a serious Axe contrast result, skip-link/touch-target accessibility, the missing designed 404, incomplete site metadata/structure, and noncompliant plain wording.
+## What changed
 
-The underlying monthly review workflow remains functional. Clean install, lint, 16/16 tests, build, dependency audit, local/live browser suites, artifact matching, invalid-input recovery, populated sample output, exports, persistence, clear-data recovery, privacy request boundaries, offline reload, service-worker update, manifest parsing, and performance budgets passed. The earlier DMY/invalid-date, response-header, footer-target, MIME, and immutable-cache findings remain fixed.
+1. Demo mode now uses the separate `private-statement-review-demo` IndexedDB database and `demo:` localStorage keys. `/demo/` opens a populated 21-row, two-month review. Its persistent banner provides “Reset demo” and “Start for real.” Starting for real deletes demo storage before opening the normal workspace.
+2. The broken checkout link is no longer shown. The US $19 one-time Plus offer and paid features remain public, but the UI says new purchase registration is pending. Existing licenses can still be restored and verified. `/work/.evidence/billing-offer.json` contains the exact offer metadata for the separate billing operator.
+3. `.factory/claims.json` registers all 24 public claim groups. Each has exactly one `@claim:<id>` Playwright test with an outcome-based sandbox.
+4. The entrance animation no longer changes opacity. Both Playwright Axe and the required Axe CLI now report zero violations on home, demo, privacy, and terms in light and dark checks.
+5. The skip link moves focus to `<main>`. Route changes focus and announce the new `<h1>`. Dialog and legal inline links now meet the 44 px target. Dialog focus and Escape behavior are tested.
+6. Unknown production paths now return HTTP 404 and render the product-specific recovery page. Physical entries exist for demo, privacy, terms, and 404.
+7. Canonical, Open Graph, Twitter, theme, favicon, and 180 px Apple metadata are present. The 1200×630 social image is derived from the product’s original art. The sitemap includes all public routes. The header includes Demo; the footer includes the builder, version, and an explicitly external source link.
+8. Landing and product copy now uses literal job headings. The first screen names the job, household audience, and first action. It includes three facts, a populated output preview, three steps, limits, and the visible paid tier. `.factory/copy-audit.md` records every landing line and terminology.
 
-No product code was changed in this review. Only `.factory/review-1.md` and this handoff were added or updated.
+The prior date-order, impossible-date, security-header, footer-target, MIME, and immutable-cache repairs remain in place and are covered by the existing unit, browser, and deployment-policy checks.
 
-## Reproduce
+## Clean verification
+
+A detached worktree at the implementation SHA was used.
 
 ```bash
 npm ci
 npm run lint
 npm test
 npm run build
+npm audit --omit=dev --audit-level=high
 npm run preview -- --host 127.0.0.1 --port 4173
 npm run verify:browser
-PSR_TEST_URL=https://private-statement-review.sociobot.in npm run verify:browser
 ```
 
-Install a Chrome/ChromeDriver pair matched to the preinstalled browser before running the Axe CLI. Full commands, observations, finding reproductions, and evidence paths are in `.factory/review-1.md`.
+Results:
 
-## Next work
+- Install: 168 packages, 0 vulnerabilities.
+- Lint: pass.
+- Unit/config: 17/17 pass.
+- Claim suite: 24/24 pass.
+- Every one of the 24 commands in `.factory/claims.json` was also run separately: 24/24 pass.
+- Production build: pass; `dist/index.html` exists.
+- Local browser verification: pass.
+- Live browser verification: pass.
+- Dependency audit: 0 production vulnerabilities.
+- Axe CLI 4.13.0: 0 violations on `/`, `/demo/`, `/privacy/`, and `/terms/`, locally and live.
+- Factory `verify-url.sh`: pass; HTTPS 200, one title, `lang=en`, one `<h1>`, one `<main>`, complete alt text, labelled buttons, and no console errors.
 
-1. Add the isolated `/demo` flow and `.factory/demo.md`.
-2. Enable and verify the Sociobot checkout for this product.
-3. Add `.factory/claims.json` and one tagged test per public claim.
-4. Fix the Axe contrast, skip-link focus, and compact legal/dialog targets.
-5. Add the designed 404, metadata, required landing sections, footer attribution/build ID, and route links.
-6. Replace metaphor/mood copy with job-naming plain words and add `.factory/copy-audit.md`.
+Invalid extension, header-only CSV, malformed quoted CSV, over-10-MiB input, ambiguous date order, invalid backup, clear/reset, and recovery paths were exercised. Phone, desktop, keyboard skip, history back, route focus, dialog focus/Escape, 200% text, light/dark contrast, reduced motion, downloads, persistence, offline reload/export, and service-worker update were exercised.
+
+## Live verification
+
+- Fresh 390×844 and 1440×900 contexts show “Review downloaded bank CSVs privately,” the household audience, and “Try it with sample data” before scrolling.
+- `/demo/` opens populated July output in one click: 3,200.00 in, 522.79 out, +2,677.21 net, and five repeat-charge candidates.
+- The demo isolation test writes a normal-data sentinel, edits and resets demo data, then proves the sentinel is unchanged.
+- An unknown path returns HTTP 404 and shows “This page was not found” with home and sample links.
+- Root responses retain CSP, anti-framing, permissions, referrer, HSTS, and `nosniff` headers. Static AVIF art retains one-year immutable caching.
+- All 20 public build artifacts matched the deployed files by SHA-256. Deployment policy is consumed by Azure and is not itself public.
+- A browser controlled by live service worker `psr-shell-v6` was kept open during deployment. It displayed the v8 update prompt after `registration.update()`.
+- The live invalid-license endpoint returns HTTP 200. The live checkout endpoint still returns HTTP 404 because external product registration has not happened.
+
+## Performance
+
+Live Lighthouse 12.8.2 mobile:
+
+- Performance: 100
+- Accessibility: 100
+- Best Practices: 100
+- SEO: 100
+- FCP: 1.0 s
+- LCP: 1.2 s
+- TBT: 70 ms
+- CLS: 0
+- Transfer: 84 KiB
+
+Build sizes: 55,389 bytes inline JavaScript, 27,491 bytes inline CSS, 85,008 bytes total HTML, and 46,151 bytes for the mobile AVIF hero. There are no web-font downloads.
+
+## Evidence
+
+- `/work/.evidence/axe-local-clean/`
+- `/work/.evidence/axe-live/`
+- `/work/.evidence/lighthouse-local.json`
+- `/work/.evidence/lighthouse-live.json`
+- `/work/.evidence/verify-url-live/`
+- `/work/.evidence/screenshots-live/landing-phone.png`
+- `/work/.evidence/screenshots-live/landing-desktop.png`
+- `/work/.evidence/billing-offer.json`
+- `/work/.evidence/catalog-description.txt`
+
+## Remaining dependency
+
+The Sociobot billing operator must register and enable `private-statement-review` from `/work/.evidence/billing-offer.json`. Until then, no new purchase action is offered. Do not replace the $19 one-time license with a mock checkout or make its paid storage features free. After registration, restore the hosted checkout link and verify payment return, entitlement, daily caching, revocation, and refund behavior with an issued test license.
+
+This is a static PWA with no product backend. Tenant isolation, server persistence, health endpoints, and 429 behavior do not apply.

@@ -4,6 +4,7 @@
 
 - Live URL: <https://private-statement-review.sociobot.in>
 - Implementation SHA deployed: `724c86492e39c02737545aad5cdf7f41f0ec8c3e`
+- Verification/documentation SHA: `35318c0` (the tested browser-harness and handoff commit; the final SHA note is report-only)
 - Previous review SHA: `bc6048a4425b5b62d0563d333badb628487302c0`
 - Deployment completed: 6 September 2026 UTC
 - Documentation: this handoff was added after the implementation deployment, so the final report-only commit is newer than the deployed SHA.

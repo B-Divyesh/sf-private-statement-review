@@ -3,11 +3,11 @@
 **Result: repaired and deployed; one external billing registration remains**
 
 - Live URL: <https://private-statement-review.sociobot.in>
-- Implementation SHA deployed: `724c86492e39c02737545aad5cdf7f41f0ec8c3e`
-- Verification/documentation SHA: `35318c0` (the tested browser-harness and handoff commit; the final SHA note is report-only)
+- Implementation SHA deployed: `3ee3dcc34650e5f5a9e61a844e5411da1598a667`
+- Verification/documentation base SHA: `a941231` (the final handoff update is report-only and is newer than the deployed implementation)
 - Previous review SHA: `bc6048a4425b5b62d0563d333badb628487302c0`
 - Deployment completed: 6 September 2026 UTC
-- Documentation: this handoff was added after the implementation deployment, so the final report-only commit is newer than the deployed SHA.
+- Documentation: this handoff was finalized after deployment. The exact report commit is repository HEAD and is stated in the completion report.
 
 ## What changed
 
@@ -24,7 +24,7 @@ The prior date-order, impossible-date, security-header, footer-target, MIME, and
 
 ## Clean verification
 
-A detached worktree at the implementation SHA was used.
+A detached worktree at the implementation SHA (`/tmp/psr-release.vbj7sT`) was used.
 
 ```bash
 npm ci
@@ -48,7 +48,7 @@ Results:
 - Live browser verification: pass.
 - Dependency audit: 0 production vulnerabilities.
 - Axe CLI 4.13.0: 0 violations on `/`, `/demo/`, `/privacy/`, and `/terms/`, locally and live.
-- Factory `verify-url.sh`: pass; HTTPS 200, one title, `lang=en`, one `<h1>`, one `<main>`, complete alt text, labelled buttons, and no console errors.
+- Factory `verify-url.sh`: pass on the final deployment; HTTPS 200, one title, `lang=en`, one `<h1>`, one `<main>`, complete alt text, labelled buttons, and no console errors.
 
 Invalid extension, header-only CSV, malformed quoted CSV, over-10-MiB input, ambiguous date order, invalid backup, clear/reset, and recovery paths were exercised. Phone, desktop, keyboard skip, history back, route focus, dialog focus/Escape, 200% text, light/dark contrast, reduced motion, downloads, persistence, offline reload/export, and service-worker update were exercised.
 
@@ -60,7 +60,7 @@ Invalid extension, header-only CSV, malformed quoted CSV, over-10-MiB input, amb
 - An unknown path returns HTTP 404 and shows “This page was not found” with home and sample links.
 - Root responses retain CSP, anti-framing, permissions, referrer, HSTS, and `nosniff` headers. Static AVIF art retains one-year immutable caching.
 - All 20 public build artifacts matched the deployed files by SHA-256. Deployment policy is consumed by Azure and is not itself public.
-- A browser controlled by live service worker `psr-shell-v6` was kept open during deployment. It displayed the v8 update prompt after `registration.update()`.
+- A browser controlled by live service worker `psr-shell-v8` was kept open during the final deployment. It displayed the v9 update prompt after `registration.update()`.
 - The live invalid-license endpoint returns HTTP 200. The live checkout endpoint still returns HTTP 404 because external product registration has not happened.
 
 ## Performance
@@ -73,19 +73,19 @@ Live Lighthouse 12.8.2 mobile:
 - SEO: 100
 - FCP: 1.0 s
 - LCP: 1.2 s
-- TBT: 70 ms
+- TBT: 80 ms
 - CLS: 0
-- Transfer: 84 KiB
+- Transfer: 73 KiB
 
-Build sizes: 55,389 bytes inline JavaScript, 27,491 bytes inline CSS, 85,008 bytes total HTML, and 46,151 bytes for the mobile AVIF hero. There are no web-font downloads.
+Build sizes: 55,396 bytes inline JavaScript, 27,491 bytes inline CSS, 85,015 bytes total HTML (25,203 bytes gzip), and 46,151 bytes for the mobile AVIF hero. There are no web-font downloads.
 
 ## Evidence
 
 - `/work/.evidence/axe-local-clean/`
 - `/work/.evidence/axe-live/`
 - `/work/.evidence/lighthouse-local.json`
-- `/work/.evidence/lighthouse-live.json`
-- `/work/.evidence/verify-url-live/`
+- `/work/.evidence/lighthouse-live-final.json`
+- `/work/.evidence/verify-url-final/`
 - `/work/.evidence/screenshots-live/landing-phone.png`
 - `/work/.evidence/screenshots-live/landing-desktop.png`
 - `/work/.evidence/billing-offer.json`

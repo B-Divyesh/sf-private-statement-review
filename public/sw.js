@@ -1,19 +1,23 @@
-const VERSION = "psr-shell-v6";
-const ASSET_CACHE = "psr-assets-v6";
+const VERSION = "psr-shell-v8";
+const ASSET_CACHE = "psr-assets-v8";
 const SHELL = [
   "/",
   "/privacy/",
   "/terms/",
+  "/demo/",
+  "/404.html",
   "/offline.html",
   "/manifest.webmanifest",
   "/icons/icon.svg",
   "/icons/icon-192.png",
+  "/icons/apple-touch-icon.png",
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",
   "/art/ledger-garden-960.webp",
   "/art/ledger-garden-1536.webp",
   "/art/ledger-garden-960.avif",
-  "/art/ledger-garden-1536.avif"
+  "/art/ledger-garden-1536.avif",
+  "/art/sf-private-statement-review-social.jpg"
 ];
 
 self.addEventListener("install", (event) => {

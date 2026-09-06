@@ -1,8 +1,8 @@
 import "./styles.css";
 import { availableMonths, compareMonths, findRecurring, flattenTransactions, monthSummary } from "./analysis";
 import { csvEscape, guessMapping, mapRows, parseCsv, type CsvTable } from "./csv";
-import { clearData, emptyData, loadData, saveData } from "./db";
-import { cachedUnlock, captureReturnedLicense, checkoutUrl, saveLicense, verifyLicense } from "./license";
+import { clearData, discardDemoData, emptyData, loadData, saveData, type StorageMode } from "./db";
+import { cachedUnlock, captureReturnedLicense, saveLicense, verifyLicense } from "./license";
 import type { AppData, ChecklistItem, ColumnMapping, MerchantRule, Review, Transaction } from "./types";
 
 type View = "home" | "import" | "review";
@@ -18,7 +18,11 @@ let view: View = "home";
 let tab: Tab = "overview";
 let draft: Draft | null = null;
 let loading = true;
-let unlocked = cachedUnlock();
+const cleanPath = (): string => location.pathname.replace(/\/+$/, "") || "/";
+const demoMode = cleanPath() === "/demo" || new URLSearchParams(location.search).get("demo") === "1";
+const storageMode: StorageMode = demoMode ? "demo" : "real";
+const themeKey = demoMode ? "demo:psr-theme" : "psr-theme";
+let unlocked = demoMode || cachedUnlock(demoMode);
 let notice = "";
 let noticeTimer = 0;
 let saveTimer = 0;
@@ -57,7 +61,7 @@ function renderNotice(): void {
 function queueSave(message = "Saved on this device"): void {
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => {
-    void saveData(data).then(() => announce(message)).catch((error: Error) => announce(error.message));
+    void saveData(data, storageMode).then(() => announce(message)).catch((error: Error) => announce(error.message));
   }, 120);
 }
 
@@ -76,62 +80,68 @@ function icon(name: "leaf" | "lock" | "moon" | "upload" | "check" | "arrow" | "p
 }
 
 function header(): string {
-  return `<header class="site-header">
-    <a class="brand" href="/" aria-label="Private Statement Review home">
+  return `${demoMode ? demoBanner() : ""}<header class="site-header">
+    <a class="brand" href="${demoMode ? "/demo/" : "/"}" aria-label="Private Statement Review home">
       <span class="brand-mark">${icon("moon")}</span><span>Private Statement<br><b>Review</b></span>
     </a>
     <nav aria-label="Primary">
       ${data.reviews.length ? '<button class="nav-action" data-action="dashboard">Your reviews</button>' : ''}
-      <a href="/privacy/">Privacy</a>
+      <a class="demo-link" href="/demo/" ${demoMode ? 'aria-current="page"' : ""}>Demo</a>
+      <a href="/privacy/${demoMode ? "?demo=1" : ""}">Privacy</a>
       <button class="icon-button" data-action="theme" aria-label="Switch color theme" title="Switch color theme">${icon("sun")}</button>
       <button class="button button-small button-quiet" data-action="plus">${icon("plus")} Plus</button>
     </nav>
   </header>`;
 }
 
+function demoBanner(): string {
+  return `<aside class="demo-banner" aria-label="Demo controls"><strong>Demo — sample data, nothing is saved</strong><div><button data-action="reset-demo">Reset demo</button><button data-action="start-real">Start for real</button></div></aside>`;
+}
+
 function footer(): string {
   return `<footer class="site-footer">
-    <p>${icon("lock")} Your statements stay in this browser.</p>
-    <nav aria-label="Legal"><a href="/privacy/">Privacy</a><a href="/terms/">Terms</a><a href="https://github.com/B-Divyesh/sf-private-statement-review">Source</a></nav>
-    <p class="generation-note">Original hero artwork generated for this product.</p>
+    <p>${icon("lock")} Review downloaded bank CSVs in your browser.</p>
+    <nav aria-label="Legal"><a href="/privacy/${demoMode ? "?demo=1" : ""}">Privacy</a><a href="/terms/${demoMode ? "?demo=1" : ""}">Terms</a><a href="https://github.com/B-Divyesh/sf-private-statement-review" target="_blank" rel="noreferrer">Source (external)</a></nav>
+    <p class="generation-note">Built by Param Factory · v1.1.0 · Original generated artwork.</p>
   </footer>`;
 }
 
 function legalPage(kind: "privacy" | "terms"): string {
-  const privacy = `<p class="eyebrow">Plain-language privacy</p><h1>What stays private</h1>
-    <p class="lede">Your financial records are processed and stored on this device. We designed the product so there is no statement server to trust.</p>
-    <section><h2>Statement data</h2><p>CSV parsing, merchant cleanup, recurring-charge detection, comparisons, notes, and exports happen inside your browser. Statement rows are saved in IndexedDB on this device so your review survives a refresh. They are never sent to Sociobot or an analytics service.</p></section>
-    <section><h2>Original CSV files</h2><p>The original file text is not retained by default. If you have a Plus license, you may explicitly choose “Keep the original CSV on this device” during import. It still stays in browser storage and can be deleted at any time.</p></section>
-    <section><h2>License checks</h2><p>If you buy or restore Plus, only the license token is sent to the Sociobot billing API to verify access. Your statement data, file names, totals, categories, and notes are not included. Sociobot/Dodo is the merchant of record and processes checkout separately.</p></section>
-    <section><h2>Network and diagnostics</h2><p>The app has no advertising trackers and no behavioral analytics. It works offline after the first visit. If you report a problem, do not include a statement; diagnostics should contain app version and browser information only, never file names, merchants, dates, or values.</p></section>
-    <section><h2>Your controls</h2><p>Use “Export private backup” to take a copy and “Clear all local data” to erase reviews, rules, and notes from this browser. Clearing site data in your browser does the same. A stored license uses localStorage and can be removed by clearing site data.</p></section>
-    <section><h2>Contact</h2><p>Privacy questions: <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>. Last updated 28 August 2026.</p></section>`;
-  const terms = `<p class="eyebrow">Fair-use terms</p><h1>Terms of use</h1>
-    <p class="lede">Private Statement Review is a review aid, not a financial adviser, bank, accountant, or guarantee of detecting every charge.</p>
-    <section><h2>Using the app</h2><p>You may use the app with statement files you are authorized to access. You are responsible for checking imported dates, signs, mappings, recurring candidates, and exported notes against the original statement before acting.</p></section>
-    <section><h2>No financial advice</h2><p>Summaries and change flags are arithmetic observations, not individualized financial, tax, credit, or investment advice. A recurring candidate can be a false positive or miss a charge. Contact the relevant merchant or institution to confirm a transaction.</p></section>
-    <section><h2>Plus purchase</h2><p>Plus is a US $19 one-time license for one person’s devices. It unlocks optional original-file retention and more than five saved merchant rules. Core review and exports remain free. Sociobot/Dodo is the merchant of record; checkout, receipts, and refunds are handled there. A refund revokes the license.</p></section>
-    <section><h2>Your data and backups</h2><p>Local browser storage can be cleared by browser settings, device loss, private browsing, or storage pressure. Keep your source statements and export backups you need. We cannot recover local records.</p></section>
-    <section><h2>Availability and liability</h2><p>The software is provided “as is” without warranties. To the extent permitted by law, Sociobot is not liable for decisions made from its output, missed transactions, or loss of local data. Nothing here limits rights that cannot legally be limited.</p></section>
-    <section><h2>Changes and contact</h2><p>Material changes will be dated here. Questions: <a href="mailto:support@sociobot.in">support@sociobot.in</a>. Last updated 28 August 2026.</p></section>`;
-  return `${header()}<main id="main" class="legal-page">${kind === "privacy" ? privacy : terms}<a class="text-link back-link" href="/">${icon("arrow")} Return to the review</a></main>${footer()}${dialogs()}${noticeRegion()}`;
+  const privacy = `<p class="eyebrow">Privacy</p><h1 tabindex="-1">How your statement data is handled</h1>
+    <p class="lede">Your financial records are processed and stored on this device.</p>
+    <section><h2>Statement data</h2><p>CSV parsing, merchant cleanup, repeat-charge checks, comparisons, notes, and exports happen in your browser.</p><p>Parsed rows use IndexedDB so your review survives a refresh. The app never sends these rows to Sociobot or analytics services.</p></section>
+    <section><h2>Original CSV files</h2><p>The original file text is discarded after import by default.</p><p>Plus can retain the original text only when you select that option. It remains in this browser.</p></section>
+    <section><h2>License checks</h2><p>A license check sends only your license token to the Sociobot billing API.</p><p>It does not include file names, amounts, merchants, categories, or notes.</p></section>
+    <section><h2>Network use</h2><p>The app has no advertising, tracking, or behavioral analytics. It works offline after your first visit.</p><p>Do not include a statement when reporting a problem. Send only the app version and browser name.</p></section>
+    <section><h2>Delete or copy your data</h2><p>Export a private backup before changing browsers or devices.</p><p>Use “Clear all local data” to erase reviews, rules, notes, and retained CSV text.</p></section>
+    <section><h2>Contact</h2><p>Email <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a> with privacy questions. Last updated 6 September 2026.</p></section>`;
+  const terms = `<p class="eyebrow">Terms</p><h1 tabindex="-1">Terms for using this review</h1>
+    <p class="lede">Private Statement Review is a review aid. It is not a bank, accountant, or financial adviser.</p>
+    <section><h2>Using the app</h2><p>Use only statements that you are allowed to access.</p><p>Check imported dates, amounts, mappings, repeat-charge candidates, and exports against the original statement.</p></section>
+    <section><h2>No financial advice</h2><p>Summaries and changes are arithmetic observations. They are not financial, tax, credit, or investment advice.</p><p>A repeat-charge candidate can be wrong or incomplete. Contact the merchant or bank before acting.</p></section>
+    <section><h2>Plus license</h2><p>Plus costs US $19 once for one person’s devices. There is no subscription.</p><p>It adds optional original-file retention and more than five merchant rules. The review and exports remain free.</p><p>Sociobot/Dodo handles checkout, receipts, and refunds. A refund revokes the license.</p></section>
+    <section><h2>Your data and backups</h2><p>Browser settings, device loss, private browsing, or storage pressure can clear local data.</p><p>Keep your source statements and export backups that you need. We cannot recover local records.</p></section>
+    <section><h2>Availability and liability</h2><p>The software is provided “as is” without warranties.</p><p>Where law permits, Sociobot is not liable for decisions based on output, missed transactions, or lost local data.</p></section>
+    <section><h2>Changes and contact</h2><p>Email <a href="mailto:support@sociobot.in">support@sociobot.in</a> with questions. Last updated 6 September 2026.</p></section>`;
+  return `${header()}<main id="main" tabindex="-1" class="legal-page">${kind === "privacy" ? privacy : terms}<a class="text-link back-link" href="${demoMode ? "/demo/" : "/"}">${icon("arrow")} Return to the review</a></main>${footer()}${dialogs()}${noticeRegion()}`;
 }
 
 function hero(): string {
-  return `<main id="main">
+  return `<main id="main" tabindex="-1">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">No bank link · no upload · works offline</p>
-        <h1>See what changed.<br><em>Keep it to yourself.</em></h1>
-        <p class="hero-lede">Turn a downloaded bank CSV into a clear monthly review—cash flow, repeat charges, and category shifts—entirely in your browser.</p>
+        <p class="eyebrow">Monthly bank CSV review</p>
+        <h1 tabindex="-1">Review downloaded bank CSVs privately</h1>
+        <p class="hero-lede">For households that want monthly cash-flow and repeat-charge checks without linking a bank account.</p>
         <div class="hero-actions">
-          <button class="button button-primary" data-action="start-import">Review a statement ${icon("arrow")}</button>
-          <button class="text-button" data-action="use-sample">Try a safe sample</button>
+          <button class="button button-primary" data-action="use-sample">Try it with sample data ${icon("arrow")}</button>
+          <button class="button button-quiet" data-action="start-import">Choose your CSV</button>
         </div>
-        <ul class="trust-list" aria-label="Privacy promises">
-          <li>${icon("lock")} Statement rows never leave your device</li>
-          <li>${icon("check")} No account or bank credentials</li>
-          <li>${icon("moon")} Ready for the next month, offline</li>
+        <p class="action-note">The sample opens a ready two-month review.</p>
+        <ul class="trust-list" aria-label="Product facts">
+          <li>${icon("lock")} CSV rows stay in this browser</li>
+          <li>${icon("moon")} Works offline after the first visit</li>
+          <li>${icon("check")} Core review is free · Plus is US $19 once</li>
         </ul>
       </div>
       <figure class="hero-scene">
@@ -140,14 +150,24 @@ function hero(): string {
           <source type="image/webp" srcset="/art/ledger-garden-960.webp 960w, /art/ledger-garden-1536.webp 1536w" sizes="(max-width: 760px) 100vw, 58vw" />
           <img src="/art/ledger-garden-1536.webp" srcset="/art/ledger-garden-960.webp 960w, /art/ledger-garden-1536.webp 1536w" sizes="(max-width: 760px) 100vw, 58vw" width="1536" height="1024" alt="A folded paper statement winding through a miniature moonlit garden" fetchpriority="high" decoding="async" />
         </picture>
-        <figcaption><span>01</span> A monthly ritual, not another budget to maintain.</figcaption>
+        <figcaption>A private monthly review starts with a downloaded CSV.</figcaption>
       </figure>
     </section>
-    <section class="how-it-works" aria-labelledby="how-title">
-      <div><p class="eyebrow">A smaller, calmer tool</p><h2 id="how-title">From download to done in four chapters</h2></div>
-      <ol><li><span>01</span><h3>Bring a CSV</h3><p>Map familiar columns once. Common bank headings are detected.</p></li><li><span>02</span><h3>Tidy merchants</h3><p>Merge cryptic descriptions and split mixed purchases on your terms.</p></li><li><span>03</span><h3>Notice patterns</h3><p>Review likely repeat charges and category changes, with the evidence beside them.</p></li><li><span>04</span><h3>Carry a checklist</h3><p>Mark what you checked, add a note, and export a plain-text record.</p></li></ol>
+    <section class="product-preview" aria-labelledby="preview-title">
+      <div class="preview-heading"><p class="eyebrow">Sample output</p><h2 id="preview-title">See cash flow and charges to check</h2><p>The sample compares June and July and flags repeated payments for review.</p></div>
+      <div class="preview-sheet"><div><span>July money in</span><strong>3,200.00</strong></div><div><span>July money out</span><strong>522.79</strong></div><div><span>Possible repeats</span><strong>5</strong></div><ul><li>StreamCo · about monthly</li><li>City Transit · about weekly</li><li>Care Clinic · about fortnightly</li></ul></div>
     </section>
+    <section class="how-it-works" aria-labelledby="how-title">
+      <div><p class="eyebrow">How it works</p><h2 id="how-title">Finish a review in three steps</h2></div>
+      <ol><li><span>01</span><h3>Import a CSV</h3><p>Match your bank’s date, description, and amount columns.</p></li><li><span>02</span><h3>Check changes</h3><p>Clean merchant names, review repeated charges, and compare months.</p></li><li><span>03</span><h3>Export your review</h3><p>Mark a checklist, add notes, and export your records.</p></li></ol>
+    </section>
+    <section class="boundaries" aria-labelledby="boundaries-title"><div><p class="eyebrow">Privacy and limits</p><h2 id="boundaries-title">What this review does not do</h2></div><ul><li>It does not connect to a bank or ask for bank credentials.</li><li>It does not upload statement rows or use cloud categorization.</li><li>It does not give financial, tax, credit, or investment advice.</li></ul></section>
+    <section class="pricing" aria-labelledby="pricing-title"><div><p class="eyebrow">Plus</p><h2 id="pricing-title">Add two optional local tools</h2><p class="dialog-price"><strong>US $19</strong> once · no subscription</p><p>Keep an original CSV by choice and save more than five merchant rules. The review, checklist, comparisons, and exports stay free.</p></div><div class="pricing-actions"><button class="button button-secondary" data-action="plus">Restore a license</button><span class="registration-note" role="status">Purchase registration is pending. Free tools work now.</span></div></section>
   </main>`;
+}
+
+function notFoundPage(): string {
+  return `${header()}<main id="main" tabindex="-1" class="not-found-page"><div class="not-found-mark" aria-hidden="true">404</div><p class="eyebrow">Page not found</p><h1 tabindex="-1">This page was not found</h1><p>Check the address, or return to the CSV review.</p><div class="hero-actions"><a class="button button-primary" href="/">Return home</a><a class="button button-quiet" href="/demo/">Open the sample</a></div></main>${footer()}${dialogs()}${noticeRegion()}`;
 }
 
 function optionList(headers: string[], selected: string, label = "Not used"): string {
@@ -156,7 +176,7 @@ function optionList(headers: string[], selected: string, label = "Not used"): st
 
 function importView(): string {
   if (!draft) {
-    return `<main id="main" class="import-page"><div class="chapter-heading"><p class="eyebrow">Chapter 01 · Import</p><h1>Bring one statement home</h1><p>Choose a comma-separated CSV from your bank. It will be read here, not uploaded.</p></div>
+    return `<main id="main" tabindex="-1" class="import-page"><div class="step-heading"><p class="eyebrow">Step 1 · Import</p><h1 tabindex="-1">Import a bank CSV</h1><p>Choose a CSV from your bank. Your browser reads it without uploading it.</p></div>
       <section class="drop-zone" data-drop-zone>
         <div class="drop-moon">${icon("upload")}</div><h2>Drop your CSV here</h2><p>or choose it from this device</p>
         <label class="button button-primary" for="csv-file">Choose a CSV</label><input class="visually-hidden" id="csv-file" type="file" accept=".csv,text/csv" />
@@ -169,7 +189,7 @@ function importView(): string {
   const currentDraft = draft;
   const mapping = currentDraft.mapping;
   const preview = currentDraft.rows.slice(0, 3);
-  return `<main id="main" class="mapping-page"><div class="chapter-heading"><p class="eyebrow">Chapter 02 · Map</p><h1>Tell us which columns are which</h1><p><strong>${html(currentDraft.filename)}</strong> has ${currentDraft.rows.length} data rows. Check the preview before importing.</p></div>
+  return `<main id="main" tabindex="-1" class="mapping-page"><div class="step-heading"><p class="eyebrow">Step 2 · Match columns</p><h1 tabindex="-1">Match your CSV columns</h1><p><strong>${html(currentDraft.filename)}</strong> has ${currentDraft.rows.length} data rows. Check the preview before importing.</p></div>
     <form id="mapping-form" class="mapping-form">
       <div class="mapping-fields">
         <label>Date column<select name="date" required>${optionList(draft.headers, mapping.date, "Choose a column")}</select></label>
@@ -192,7 +212,7 @@ function reviewNav(): string {
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" }, { id: "tidy", label: "Tidy" }, { id: "recurring", label: "Repeat charges" }, { id: "compare", label: "Compare" }, { id: "finish", label: "Finish" }
   ];
-  return `<nav class="review-tabs" aria-label="Review chapters">${tabs.map((item, index) => `<button data-tab="${item.id}" aria-current="${tab === item.id ? "step" : "false"}"><span>${String(index + 1).padStart(2, "0")}</span>${item.label}</button>`).join("")}</nav>`;
+  return `<nav class="review-tabs" aria-label="Review steps">${tabs.map((item, index) => `<button data-tab="${item.id}" aria-current="${tab === item.id ? "step" : "false"}"><span>${String(index + 1).padStart(2, "0")}</span>${item.label}</button>`).join("")}</nav>`;
 }
 
 function summaryCards(transactions: Transaction[], month: string): string {
@@ -204,7 +224,7 @@ function overviewPanel(transactions: Transaction[], months: string[]): string {
   const current = months.at(-1) ?? "";
   const latest = transactions.filter((transaction) => transaction.date.startsWith(current));
   const reviewCount = data.reviews.length;
-  return `<section class="panel" aria-labelledby="overview-title"><div class="panel-heading"><div><p class="eyebrow">Current chapter</p><h2 id="overview-title">${current ? html(monthName(current)) : "Review overview"}</h2><p>${latest.length} transactions across ${reviewCount} imported ${reviewCount === 1 ? "file" : "files"}. Amounts use your statement’s currency.</p></div><button class="button button-primary" data-action="start-import">${icon("plus")} Import another month</button></div>
+  return `<section class="panel" aria-labelledby="overview-title"><div class="panel-heading"><div><p class="eyebrow">Review summary</p><h2 id="overview-title">${current ? html(monthName(current)) : "Review overview"}</h2><p>${latest.length} transactions across ${reviewCount} imported ${reviewCount === 1 ? "file" : "files"}. Amounts use your statement’s currency.</p></div><button class="button button-primary" data-action="start-import">${icon("plus")} Import another month</button></div>
     ${summaryCards(transactions, current)}
     <div class="privacy-callout">${icon("lock")} <div><strong>Nothing was uploaded.</strong><span>This summary was calculated in your browser and saved only on this device.</span></div></div>
     <div class="overview-grid"><section><h3>Next useful checks</h3><ol class="next-steps"><li><span>1</span><div><strong>Clean merchant names</strong><p>Turn statement codes into names you recognize.</p><button class="text-button" data-tab="tidy">Open tidy-up →</button></div></li><li><span>2</span><div><strong>Look at repeat charges</strong><p>${findRecurring(transactions).length} candidates found from the dates and amounts available.</p><button class="text-button" data-tab="recurring">Review candidates →</button></div></li><li><span>3</span><div><strong>Compare months</strong><p>${months.length > 1 ? "Two or more months are ready." : "Import one more month to reveal changes."}</p><button class="text-button" data-tab="compare">View comparison →</button></div></li></ol></section>
@@ -214,7 +234,7 @@ function overviewPanel(transactions: Transaction[], months: string[]): string {
 function tidyPanel(transactions: Transaction[]): string {
   const uncategorized = transactions.filter((transaction) => transaction.category === "Uncategorized").length;
   const rows = transactions.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 80);
-  return `<section class="panel" aria-labelledby="tidy-title"><div class="panel-heading"><div><p class="eyebrow">Chapter 02</p><h2 id="tidy-title">Make the statement recognizable</h2><p>Merge coded descriptions under one merchant name, assign a category, or split a mixed purchase. ${uncategorized} remain uncategorized.</p></div></div>
+  return `<section class="panel" aria-labelledby="tidy-title"><div class="panel-heading"><div><p class="eyebrow">Step 2</p><h2 id="tidy-title">Clean merchant names and categories</h2><p>Merge coded descriptions under one merchant name, assign a category, or split a mixed purchase. ${uncategorized} remain uncategorized.</p></div></div>
     <form id="rule-form" class="rule-form"><h3>Add a merchant rule</h3><label>When description contains<input name="match" required maxlength="80" autocomplete="off" placeholder="e.g. STREAMCO*4432" /></label><label>Show as<input name="merchant" required maxlength="80" autocomplete="off" placeholder="e.g. StreamCo" /></label><label>Category<input name="category" maxlength="40" autocomplete="off" placeholder="e.g. Subscriptions" /></label><button class="button button-secondary" type="submit">Save rule</button><p class="field-note">${unlocked ? "Plus active: save as many rules as you need." : `${data.rules.length}/5 free rules used. Plus removes the limit.`}</p><div id="rule-error" class="form-error" role="alert"></div></form>
     ${data.rules.length ? `<div class="saved-rules"><h3>Saved rules</h3><ul>${data.rules.map((rule) => `<li><span><b>Contains “${html(rule.match)}”</b> → ${html(rule.merchant)}${rule.category ? ` · ${html(rule.category)}` : ""}</span><button class="icon-button" data-remove-rule="${rule.id}" aria-label="Remove rule for ${html(rule.match)}">×</button></li>`).join("")}</ul></div>` : ""}
     <div class="transaction-list"><h3>Transactions</h3><p class="fine-print">Showing the newest ${rows.length}. Rules apply to all imported months.</p><div class="transaction-table">${rows.map((transaction) => `<article class="transaction-row" data-transaction="${transaction.id}"><div class="transaction-main"><time datetime="${transaction.date}">${html(dateName(transaction.date))}</time><div><strong>${html(transaction.merchant)}</strong><small title="Raw statement description">${html(transaction.description)}</small></div><span class="category-pill">${html(transaction.category)}</span><b class="transaction-amount ${transaction.amount < 0 ? "negative" : "positive"}">${transaction.amount < 0 ? "−" : "+"}${amount(Math.abs(transaction.amount))}</b></div><details><summary>Split or recategorize</summary><form class="transaction-edit-form" data-edit-transaction="${transaction.id}"><label>Category<input name="category" value="${html(transaction.category)}" maxlength="40" required /></label><div class="split-fields"><label>First part label<input name="label1" value="${html(transaction.splits[0]?.label ?? "")}" maxlength="40" /></label><label>Amount<input name="amount1" inputmode="decimal" value="${transaction.splits[0] ? amount(transaction.splits[0].amount) : ""}" /></label><label>Second part label<input name="label2" value="${html(transaction.splits[1]?.label ?? "")}" maxlength="40" /></label><label>Amount<input name="amount2" inputmode="decimal" value="${transaction.splits[1] ? amount(transaction.splits[1].amount) : ""}" /></label></div><p class="field-note">To split, both positive parts must add up to ${amount(Math.abs(transaction.amount))}.</p><div class="form-error" role="alert"></div><button class="button button-small button-secondary" type="submit">Save changes</button></form></details></article>`).join("")}</div></div></section>`;
@@ -222,20 +242,20 @@ function tidyPanel(transactions: Transaction[]): string {
 
 function recurringPanel(transactions: Transaction[]): string {
   const candidates = findRecurring(transactions);
-  return `<section class="panel" aria-labelledby="recurring-title"><div class="panel-heading"><div><p class="eyebrow">Chapter 03</p><h2 id="recurring-title">Charges that seem to return</h2><p>These are candidates based on similar merchant names, timing, and amounts—not confirmed subscriptions. Check each against the original statement.</p></div></div>
+  return `<section class="panel" aria-labelledby="recurring-title"><div class="panel-heading"><div><p class="eyebrow">Step 3</p><h2 id="recurring-title">Review possible repeat charges</h2><p>These are candidates based on similar names, dates, and amounts. Check each against the original statement.</p></div></div>
     ${candidates.length ? `<div class="candidate-grid">${candidates.map((candidate) => `<article class="candidate"><div class="candidate-top"><span class="confidence ${candidate.confidence}">${candidate.confidence === "likely" ? "Likely repeat" : "Worth checking"}</span><span>${html(candidate.cadence)}</span></div><h3>${html(candidate.merchant)}</h3><p class="candidate-amount">~${amount(candidate.typicalAmount)} <small>per charge</small></p><details><summary>See ${candidate.transactions.length} matching charges</summary><ul>${candidate.transactions.map((transaction) => `<li><time>${html(dateName(transaction.date))}</time><b>${amount(Math.abs(transaction.amount))}</b></li>`).join("")}</ul></details><button class="button button-secondary" data-add-check="recurring" data-label="Check ${html(candidate.merchant)}" data-detail="${html(candidate.cadence)}, about ${amount(candidate.typicalAmount)}">Add to checklist</button></article>`).join("")}</div>` : `<div class="empty-state"><span class="empty-moons">◐ ◑</span><h3>No repeat pattern yet</h3><p>We need at least two matching charges with a regular interval. Import another month, or tidy merchant names so matches line up.</p><button class="button button-primary" data-action="start-import">Import another month</button></div>`}
   </section>`;
 }
 
 function comparePanel(transactions: Transaction[], months: string[]): string {
-  if (months.length < 2) return `<section class="panel" aria-labelledby="compare-title"><div class="panel-heading"><div><p class="eyebrow">Chapter 04</p><h2 id="compare-title">Compare one month with another</h2></div></div><div class="empty-state"><span class="empty-moons">◒</span><h3>One more month will reveal the change</h3><p>Import a CSV containing a different month. We’ll line up spending categories without building a budget.</p><button class="button button-primary" data-action="start-import">Import another month</button></div></section>`;
+  if (months.length < 2) return `<section class="panel" aria-labelledby="compare-title"><div class="panel-heading"><div><p class="eyebrow">Step 4</p><h2 id="compare-title">Compare monthly spending</h2></div></div><div class="empty-state"><span class="empty-moons">◒</span><h3>Import one more month</h3><p>Import a CSV containing a different month. The review will compare spending categories.</p><button class="button button-primary" data-action="start-import">Import another month</button></div></section>`;
   const current = months.at(-1)!;
   const previous = months.at(-2)!;
   const changes = compareMonths(transactions, current, previous);
   const currentSummary = monthSummary(transactions, current);
   const previousSummary = monthSummary(transactions, previous);
   const max = Math.max(...changes.map((change) => Math.max(change.current, change.previous)), 1);
-  return `<section class="panel" aria-labelledby="compare-title"><div class="panel-heading"><div><p class="eyebrow">Chapter 04</p><h2 id="compare-title">${html(monthName(current))} vs ${html(monthName(previous))}</h2><p>Largest category movements first. New categories are labelled instead of given a misleading percentage.</p></div></div>
+  return `<section class="panel" aria-labelledby="compare-title"><div class="panel-heading"><div><p class="eyebrow">Step 4</p><h2 id="compare-title">${html(monthName(current))} vs ${html(monthName(previous))}</h2><p>Largest category changes appear first. New categories are marked as new.</p></div></div>
     <div class="compare-summary"><div><span>${html(monthName(previous))}</span><b>${amount(previousSummary.spending)} out</b></div><span class="compare-arrow">→</span><div><span>${html(monthName(current))}</span><b>${amount(currentSummary.spending)} out</b></div><strong class="${currentSummary.spending > previousSummary.spending ? "negative" : "positive"}">${currentSummary.spending > previousSummary.spending ? "+" : "−"}${amount(Math.abs(currentSummary.spending - previousSummary.spending))}</strong></div>
     <div class="change-list">${changes.map((change) => {
       const percentText = change.percent === null ? "· new" : `· ${Math.abs(change.percent).toFixed(0)}% ${change.delta >= 0 ? "more" : "less"}`;
@@ -248,11 +268,11 @@ function finishPanel(): string {
   const items = data.reviews.flatMap((review) => review.checklist);
   const activeReview = data.reviews.at(-1);
   const done = items.filter((item) => item.done).length;
-  return `<section class="panel" aria-labelledby="finish-title"><div class="panel-heading"><div><p class="eyebrow">Chapter 05</p><h2 id="finish-title">Close the loop</h2><p>${done} of ${items.length} checklist items marked complete. The checklist and exports never need a network connection.</p></div></div>
+  return `<section class="panel" aria-labelledby="finish-title"><div class="panel-heading"><div><p class="eyebrow">Step 5</p><h2 id="finish-title">Finish and export your review</h2><p>${done} of ${items.length} checklist items are complete. The checklist and exports work without a network connection.</p></div></div>
     <div class="finish-grid"><section class="checklist"><h3>Your review checklist</h3>${items.length ? `<ul>${items.map((item) => `<li><label><input type="checkbox" data-check-item="${item.id}" ${item.done ? "checked" : ""} /><span><strong>${html(item.label)}</strong><small>${html(item.detail)}</small></span></label><button class="icon-button" data-remove-check="${item.id}" aria-label="Remove ${html(item.label)}">×</button></li>`).join("")}</ul>` : '<div class="mini-empty"><p>No items yet. Add candidates from Repeat charges or Compare, or write your own.</p></div>'}
       <form id="custom-check-form" class="custom-check"><label for="custom-check">Add your own check</label><div><input id="custom-check" name="label" maxlength="120" required placeholder="e.g. Ask about the duplicate café charge" /><button class="button button-secondary" type="submit">Add</button></div></form></section>
       <section class="review-note"><h3>Monthly note</h3><label for="review-notes">What did you notice?</label><textarea id="review-notes" rows="7" maxlength="2000" placeholder="A short note for next month…">${html(activeReview?.notes ?? "")}</textarea><p class="field-note">Saved only on this device.</p></section></div>
-    <div class="export-block"><div><h3>Take your work with you</h3><p>Checklist is a readable Markdown file. Transaction CSV and private backup remain yours.</p></div><div class="export-actions"><button class="button button-primary" data-action="export-checklist">Export checklist</button><button class="button button-secondary" data-action="export-csv">Export transactions</button><button class="button button-quiet" data-action="export-backup">Export private backup</button><label class="button button-quiet" for="backup-file">Import backup</label><input class="visually-hidden" id="backup-file" type="file" accept="application/json,.json" /></div></div>
+    <div class="export-block"><div><h3>Export your review</h3><p>The checklist is a Markdown file. You can also export transactions or a private backup.</p></div><div class="export-actions"><button class="button button-primary" data-action="export-checklist">Export checklist</button><button class="button button-secondary" data-action="export-csv">Export transactions</button><button class="button button-quiet" data-action="export-backup">Export private backup</button><label class="button button-quiet" for="backup-file">Import backup</label><input class="visually-hidden" id="backup-file" type="file" accept="application/json,.json" /></div></div>
     <div class="danger-zone"><div><h3>Clear local data</h3><p>Erase all imported rows, rules, notes, and any retained original files from this browser.</p></div><button class="button button-danger" data-action="confirm-clear">Clear all local data</button></div>
   </section>`;
 }
@@ -264,11 +284,11 @@ function workspace(): string {
     : tab === "tidy" ? tidyPanel(transactions)
       : tab === "recurring" ? recurringPanel(transactions)
         : tab === "compare" ? comparePanel(transactions, months) : finishPanel();
-  return `<main id="main" class="workspace"><div class="workspace-title"><div><p class="eyebrow">Private monthly workspace</p><h1>Your statement review</h1></div><div class="local-badge">${icon("lock")} Local only</div></div>${reviewNav()}${panel}</main>`;
+  return `<main id="main" tabindex="-1" class="workspace"><div class="workspace-title"><div><p class="eyebrow">Monthly CSV review</p><h1 tabindex="-1">Your statement review</h1></div><div class="local-badge">${icon("lock")} ${demoMode ? "Demo data" : "Stored locally"}</div></div>${reviewNav()}${panel}</main>`;
 }
 
 function plusDialog(): string {
-  return `<dialog id="plus-dialog" class="dialog"><button class="dialog-close icon-button" data-action="close-plus" aria-label="Close Plus details">×</button><p class="eyebrow">Private Statement Review Plus</p><h2>Keep the useful extras, once.</h2><p class="dialog-price"><strong>US $19</strong> one-time · no subscription</p><ul class="feature-list"><li>${icon("check")} Keep an opt-in copy of the original CSV locally</li><li>${icon("check")} Save more than five merchant cleanup rules</li><li>${icon("check")} Use the license on your own devices</li></ul><p>The complete review, comparisons, accessibility, checklist, and every export stay free.</p>${unlocked ? '<div class="license-active">✓ Plus is active on this device.</div>' : `<a class="button button-primary button-wide" href="${checkoutUrl()}">Buy Plus securely ${icon("arrow")}</a>`}<hr><form id="license-form"><label for="license-token">Have a license? Paste it here</label><div class="license-input"><input id="license-token" name="license" required autocomplete="off" spellcheck="false" /><button class="button button-secondary" type="submit">Verify</button></div><div id="license-status" class="form-error" role="status"></div></form><p class="fine-print">Checkout and refunds are handled by Sociobot/Dodo, the merchant of record. <a href="/privacy/">Privacy</a> · <a href="/terms/">Terms</a></p></dialog>`;
+  return `<dialog id="plus-dialog" class="dialog"><button class="dialog-close icon-button" data-action="close-plus" aria-label="Close Plus details">×</button><p class="eyebrow">Private Statement Review Plus</p><h2>Add optional local storage tools</h2><p class="dialog-price"><strong>US $19</strong> once · no subscription</p><ul class="feature-list"><li>${icon("check")} Keep an original CSV only when you choose</li><li>${icon("check")} Save more than five merchant cleanup rules</li><li>${icon("check")} Restore the license on your devices</li></ul><p>The review, comparisons, checklist, accessibility, and exports stay free.</p>${unlocked ? '<div class="license-active">✓ Plus is active on this device.</div>' : '<div class="registration-note">New purchases are temporarily unavailable while registration is completed.</div>'}<hr><form id="license-form"><label for="license-token">Have a license? Paste it here</label><div class="license-input"><input id="license-token" name="license" required autocomplete="off" spellcheck="false" /><button class="button button-secondary" type="submit">Verify license</button></div><div id="license-status" class="form-error" role="status" aria-live="polite"></div></form><p class="fine-print">Sociobot/Dodo is the merchant of record. <a href="/privacy/${demoMode ? "?demo=1" : ""}">Privacy</a> · <a href="/terms/${demoMode ? "?demo=1" : ""}">Terms</a></p></dialog>`;
 }
 
 function dialogs(): string {
@@ -276,15 +296,43 @@ function dialogs(): string {
 }
 
 function noticeRegion(): string {
-  return `<div id="live-notice" class="toast" role="status" aria-live="polite">${html(notice)}</div><div id="network-status" class="network-status" role="status" aria-live="polite" hidden></div><div id="update-toast" class="update-toast" hidden><span>An app update is ready.</span><button class="button button-small button-secondary" data-action="update-app">Update now</button></div>`;
+  return `<div id="route-announcer" class="visually-hidden" aria-live="polite"></div><div id="live-notice" class="toast" role="status" aria-live="polite">${html(notice)}</div><div id="network-status" class="network-status" role="status" aria-live="polite" hidden></div><div id="update-toast" class="update-toast" hidden><span>An app update is ready.</span><button class="button button-small button-secondary" data-action="update-app">Update now</button></div>`;
+}
+
+function setMetadata(title: string, description: string, path: string): void {
+  document.title = title;
+  const canonical = new URL(path, location.origin).href;
+  document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute("content", description);
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.setAttribute("href", canonical);
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute("content", title);
+  document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute("content", description);
+  document.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.setAttribute("content", canonical);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')?.setAttribute("content", title);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]')?.setAttribute("content", description);
 }
 
 function render(): void {
-  const path = location.pathname.replace(/\/+$/, "") || "/";
-  if (path === "/privacy") { document.title = "Privacy — Private Statement Review"; root.innerHTML = legalPage("privacy"); }
-  else if (path === "/terms") { document.title = "Terms — Private Statement Review"; root.innerHTML = legalPage("terms"); }
-  else if (loading) root.innerHTML = `<main id="main" class="loading-screen"><div class="loading-moon" aria-hidden="true"></div><h1>Opening your private workspace…</h1><p>Reading only this device.</p></main>${noticeRegion()}`;
-  else { document.title = "Private Statement Review — Monthly clarity, kept on this device"; root.innerHTML = `${header()}${view === "import" ? importView() : data.reviews.length && view === "review" ? workspace() : hero()}${footer()}${dialogs()}${noticeRegion()}`; }
+  const path = cleanPath();
+  const description = "Review downloaded bank CSVs for cash flow, repeated charges, and monthly changes without linking a bank account.";
+  if (path === "/privacy") {
+    setMetadata("Privacy — Private Statement Review", "Learn how Private Statement Review stores CSV rows and reviews in your browser.", "/privacy/");
+    root.innerHTML = legalPage("privacy");
+  } else if (path === "/terms") {
+    setMetadata("Terms — Private Statement Review", "Read the terms for Private Statement Review and its optional one-time Plus license.", "/terms/");
+    root.innerHTML = legalPage("terms");
+  } else if (!["/", "/demo", "/404", "/404.html"].includes(path)) {
+    setMetadata("Page not found — Private Statement Review", "Return to Private Statement Review or open its sample CSV review.", path);
+    root.innerHTML = notFoundPage();
+  } else if (path === "/404" || path === "/404.html") {
+    setMetadata("Page not found — Private Statement Review", "Return to Private Statement Review or open its sample CSV review.", "/404.html");
+    root.innerHTML = notFoundPage();
+  } else if (loading) {
+    setMetadata(demoMode ? "Demo — Private Statement Review" : "Private Statement Review — Review bank CSVs privately", description, demoMode ? "/demo/" : "/");
+    root.innerHTML = `${demoMode ? demoBanner() : ""}<main id="main" tabindex="-1" class="loading-screen"><div class="loading-moon" aria-hidden="true"></div><h1 tabindex="-1">Opening ${demoMode ? "the sample review" : "your CSV review"}</h1><p>Reading only this browser.</p></main>${noticeRegion()}`;
+  } else {
+    setMetadata(demoMode ? "Demo — Private Statement Review" : "Private Statement Review — Review bank CSVs privately", description, demoMode ? "/demo/" : "/");
+    root.innerHTML = `${header()}${view === "import" ? importView() : data.reviews.length && view === "review" ? workspace() : hero()}${footer()}${dialogs()}${noticeRegion()}`;
+  }
   updateNetworkStatus();
 }
 
@@ -365,47 +413,134 @@ async function importBackup(file: File): Promise<void> {
     const validRule = (rule: MerchantRule) => rule && typeof rule.id === "string" && typeof rule.match === "string" && typeof rule.merchant === "string" && typeof rule.category === "string";
     if (parsed.version !== 1 || !Array.isArray(parsed.reviews) || !parsed.reviews.every(validReview) || !Array.isArray(parsed.rules) || !parsed.rules.every(validRule)) throw new Error("This is not a valid Private Statement Review backup.");
     data = parsed;
-    await saveData(data);
+    await saveData(data, storageMode);
     view = data.reviews.length ? "review" : "home";
     render();
     announce("Private backup imported");
   } catch (error) { announce(error instanceof Error ? error.message : "The backup could not be imported."); }
 }
 
+const SAMPLE_CSV = `Date,Description,Amount,Category
+2026-06-03,ACME PAYROLL,3200.00,Income
+2026-06-04,CITY TRANSIT,-22.50,Transport
+2026-06-05,STREAMCO*1029,-14.99,Subscriptions
+2026-06-06,FRESH MART,-84.40,Groceries
+2026-06-11,CITY TRANSIT,-22.50,Transport
+2026-06-13,CARE CLINIC,-65.00,Health
+2026-06-18,CITY TRANSIT,-22.50,Transport
+2026-06-18,CITY ENERGY,-91.20,Utilities
+2026-06-25,CITY TRANSIT,-22.50,Transport
+2026-06-27,CARE CLINIC,-65.00,Health
+2026-07-02,CITY TRANSIT,-22.50,Transport
+2026-07-03,ACME PAYROLL,3200.00,Income
+2026-07-05,STREAMCO*4821,-14.99,Subscriptions
+2026-07-09,CITY TRANSIT,-22.50,Transport
+2026-07-09,FRESH MART,-112.70,Groceries
+2026-07-11,CARE CLINIC,-65.00,Health
+2026-07-16,CITY TRANSIT,-22.50,Transport
+2026-07-18,CITY ENERGY,-128.60,Utilities
+2026-07-22,CAFE AND BOOKS,-46.50,Uncategorized
+2026-07-23,CITY TRANSIT,-22.50,Transport
+2026-07-25,CARE CLINIC,-65.00,Health`;
+
+function sampleData(): AppData {
+  const table = parseCsv(SAMPLE_CSV);
+  const mapping = guessMapping(table.headers);
+  const result = mapRows(table.rows, mapping);
+  const review: Review = {
+    id: crypto.randomUUID(),
+    filename: "sample-household-june-july.csv",
+    importedAt: "2026-07-31T12:00:00.000Z",
+    transactions: result.transactions,
+    checklist: makeChecklist(result.transactions),
+    notes: "Check the higher energy bill and the café purchase before closing July."
+  };
+  return { version: 1, reviews: [review], rules: [], mapping };
+}
+
 function useSample(): void {
-  const sample = `Date,Description,Amount,Category\n2026-06-03,ACME PAYROLL,3200.00,Income\n2026-06-05,STREAMCO*1029,-14.99,Subscriptions\n2026-06-09,CORNER MARKET,-84.40,Groceries\n2026-06-18,CITY ENERGY,-91.20,Utilities\n2026-07-03,ACME PAYROLL,3200.00,Income\n2026-07-05,STREAMCO*4821,-14.99,Subscriptions\n2026-07-09,CORNER MARKET,-112.70,Groceries\n2026-07-18,CITY ENERGY,-128.60,Utilities\n2026-07-22,CAFE AND BOOKS,-46.50,Uncategorized`;
-  const table = parseCsv(sample);
-  draft = { ...table, filename: "safe-sample.csv", raw: sample, mapping: guessMapping(table.headers, data.mapping), errors: [] };
-  view = "import";
-  render();
+  location.assign("/demo/");
+}
+
+function clearDemoPreferences(): void {
+  [...Array(localStorage.length).keys()].map((index) => localStorage.key(index)).filter((key): key is string => Boolean(key?.startsWith("demo:"))).forEach((key) => localStorage.removeItem(key));
 }
 
 function updateNetworkStatus(): void {
   const status = document.querySelector<HTMLElement>("#network-status");
   if (!status) return;
   status.hidden = navigator.onLine;
-  status.innerHTML = navigator.onLine ? "" : `${icon("moon")} Offline — your saved reviews still work`;
+  status.innerHTML = navigator.onLine ? "" : `${icon("moon")} Offline — this review still works`;
 }
+
+function focusPageHeading(): void {
+  window.requestAnimationFrame(() => {
+    const heading = document.querySelector<HTMLElement>("main h1");
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: "start" });
+    const announcer = document.querySelector<HTMLElement>("#route-announcer");
+    if (announcer) announcer.textContent = heading?.textContent?.trim() ?? document.title;
+  });
+}
+
+document.addEventListener("click", (event) => {
+  const target = event.target as HTMLElement;
+  if (target.closest(".skip-link")) {
+    event.preventDefault();
+    window.requestAnimationFrame(() => document.querySelector<HTMLElement>("#main")?.focus());
+  }
+});
+
+root.addEventListener("click", (event) => {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const anchor = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
+  if (!anchor || anchor.target || anchor.hasAttribute("download")) return;
+  const url = new URL(anchor.href, location.href);
+  if (url.origin !== location.origin) return;
+  const nextPath = url.pathname.replace(/\/+$/, "") || "/";
+  const nextDemo = nextPath === "/demo" || url.searchParams.get("demo") === "1";
+  if (nextDemo !== demoMode || !["/", "/demo", "/privacy", "/terms", "/404", "/404.html"].includes(nextPath)) return;
+  event.preventDefault();
+  history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  render();
+  focusPageHeading();
+});
+
+window.addEventListener("popstate", () => { render(); focusPageHeading(); });
 
 root.addEventListener("click", (event) => {
   const target = event.target as HTMLElement;
   const button = target.closest<HTMLElement>("[data-action], [data-tab], [data-remove-rule], [data-add-check], [data-remove-check]");
   if (!button) return;
   const action = button.dataset.action;
-  if (action === "start-import") { view = "import"; draft = null; render(); window.scrollTo(0, 0); }
-  if (action === "cancel-import" || action === "dashboard") { view = data.reviews.length ? "review" : "home"; draft = null; render(); }
+  if (action === "start-import") { view = "import"; draft = null; render(); window.scrollTo(0, 0); focusPageHeading(); }
+  if (action === "cancel-import" || action === "dashboard") { view = data.reviews.length ? "review" : "home"; draft = null; render(); focusPageHeading(); }
   if (action === "discard-draft") { draft = null; render(); }
   if (action === "use-sample") useSample();
   if (action === "theme") {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     document.documentElement.dataset.theme = next;
-    localStorage.setItem("psr-theme", next);
+    localStorage.setItem(themeKey, next);
+  }
+  if (action === "reset-demo" && demoMode) {
+    clearDemoPreferences();
+    document.documentElement.dataset.theme = "auto";
+    unlocked = true;
+    data = sampleData();
+    draft = null;
+    view = "review";
+    tab = "overview";
+    void saveData(data, "demo").then(() => { render(); announce("Demo reset to the original sample"); });
+  }
+  if (action === "start-real" && demoMode) {
+    clearDemoPreferences();
+    void discardDemoData().then(() => location.assign("/"));
   }
   if (action === "plus") (document.querySelector("#plus-dialog") as HTMLDialogElement)?.showModal();
   if (action === "close-plus") (document.querySelector("#plus-dialog") as HTMLDialogElement)?.close();
   if (action === "confirm-clear") (document.querySelector("#clear-dialog") as HTMLDialogElement)?.showModal();
   if (action === "cancel-clear") (document.querySelector("#clear-dialog") as HTMLDialogElement)?.close();
-  if (action === "clear-all") void clearData().then(() => { data = emptyData(); view = "home"; draft = null; render(); announce("All review data was cleared from this browser"); });
+  if (action === "clear-all") void clearData(storageMode).then(() => { data = demoMode ? sampleData() : emptyData(); view = demoMode ? "review" : "home"; draft = null; render(); announce(demoMode ? "Demo reset to the original sample" : "All review data was cleared from this browser"); });
   if (action === "export-checklist") exportChecklist();
   if (action === "export-csv") exportCsv();
   if (action === "export-backup") { download(`private-statement-review-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), "application/json"); announce("Private backup exported"); }
@@ -465,7 +600,7 @@ root.addEventListener("submit", (event) => {
       if (unlocked && formData.get("retain") === "on") review.sourceCsv = draft.raw;
       data.mapping = mapping;
       data.reviews.push(review);
-      void saveData(data).then(() => {
+      void saveData(data, storageMode).then(() => {
         const skipped = result.errors.length ? ` ${result.errors.length} unreadable ${result.errors.length === 1 ? "row was" : "rows were"} skipped.` : "";
         draft = null; view = "review"; tab = "overview"; render(); announce(`${result.transactions.length} transactions imported.${skipped}`);
       });
@@ -510,9 +645,9 @@ root.addEventListener("submit", (event) => {
     const token = String(new FormData(form).get("license") ?? "").trim();
     const status = form.querySelector<HTMLElement>("#license-status");
     if (!token) return;
-    saveLicense(token);
+    saveLicense(token, demoMode);
     if (status) status.textContent = "Checking license…";
-    void verifyLicense(true).then((result) => {
+    void verifyLicense(true, demoMode).then((result) => {
       unlocked = result.valid;
       if (status) status.textContent = result.valid ? "License verified. Plus is active." : `License not active (${result.reason.replaceAll("_", " ")}).`;
       if (result.valid) window.setTimeout(render, 900);
@@ -550,17 +685,18 @@ function registerServiceWorker(): void {
   }).catch(() => { /* app remains usable without installation */ });
 }
 
-document.documentElement.dataset.theme = localStorage.getItem("psr-theme") ?? "auto";
-captureReturnedLicense();
-unlocked = cachedUnlock();
+document.documentElement.dataset.theme = localStorage.getItem(themeKey) ?? "auto";
+captureReturnedLicense(demoMode);
+unlocked = demoMode || cachedUnlock(demoMode);
 render();
-void loadData().then((stored) => {
-  data = stored;
+void loadData(storageMode).then(async (stored) => {
+  data = demoMode && !stored.reviews.length ? sampleData() : stored;
+  if (demoMode && !stored.reviews.length) await saveData(data, "demo");
   loading = false;
   view = data.reviews.length ? "review" : "home";
   render();
   registerServiceWorker();
-  if (unlocked && navigator.onLine) void verifyLicense().then((result) => {
+  if (!demoMode && unlocked && navigator.onLine) void verifyLicense(false, false).then((result) => {
     if (!result.valid) { unlocked = false; render(); announce("Your Plus license is no longer active. The free review remains available."); }
   }).catch(() => { /* cached access remains available offline */ });
 }).catch((error: Error) => { loading = false; render(); announce(error.message); });

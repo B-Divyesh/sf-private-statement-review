@@ -6,13 +6,14 @@ export default defineConfig({
   plugins: [
     viteSingleFile(),
     {
-      name: "copy-legal-routes",
+      name: "copy-static-routes",
       apply: "build",
       async closeBundle() {
-        await Promise.all(["privacy", "terms"].map(async (route) => {
+        await Promise.all(["privacy", "terms", "demo"].map(async (route) => {
           await mkdir(`dist/${route}`, { recursive: true });
           await copyFile("dist/index.html", `dist/${route}/index.html`);
         }));
+        await copyFile("dist/index.html", "dist/404.html");
       }
     }
   ],

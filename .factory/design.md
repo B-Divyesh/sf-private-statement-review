@@ -41,7 +41,7 @@ Cards are reserved for independent review candidates. Related controls use proxi
 ## Interaction grammar
 
 - Import is a single obvious doorway: choose a CSV or drop it on the paper well.
-- The review progresses in five numbered chapters: Import, Map, Tidy, Compare, Finish. Completed chapters gain a filled brass pin and remain editable.
+- The review progresses through five numbered steps: Overview, Tidy, Repeat charges, Compare, and Finish. Labels stay literal while brass step numbers carry the visual identity.
 - Merchant rules are explicit and reversible. Raw descriptions are always visible beside normalized names.
 - Change is communicated with signed values, words, and color — never color alone.
 - Every save announces itself in a polite live region. Destructive clearing names what will be erased and requires confirmation.
@@ -53,6 +53,7 @@ Physical logic only: the hero paper scene rises 12 px and fades in over 420 ms; 
 ## Asset plan and provenance
 
 - `public/art/ledger-garden-{960,1536}.{avif,webp}`: responsive AVIF with WebP fallback, explicit intrinsic dimensions, and a mobile source under 60 KB.
+- `public/art/sf-private-statement-review-social.jpg`: 1200×630 center crop derived from the original ledger-garden source for social metadata.
 - `assets/src/ledger-garden.png`: generation source retained for provenance and future edits, not shipped in the built app.
 - App icons and small UI marks are hand-authored SVGs using the moon/ledger motif; decorative only where labels already carry meaning.
 

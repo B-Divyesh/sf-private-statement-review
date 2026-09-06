@@ -5,6 +5,8 @@ type StaticWebAppConfig = {
   globalHeaders: Record<string, string>;
   mimeTypes: Record<string, string>;
   routes: { route: string; headers?: Record<string, string> }[];
+  responseOverrides: Record<string, { rewrite: string }>;
+  navigationFallback?: unknown;
 };
 
 describe("static deployment policy", () => {
@@ -22,5 +24,11 @@ describe("static deployment policy", () => {
     for (const route of ["/art/*", "/icons/*", "/assets/*"]) {
       expect(config.routes.find((entry) => entry.route === route)?.headers?.["Cache-Control"]).toBe("public, max-age=31536000, immutable");
     }
+  });
+
+  it("lets unknown paths return the designed 404 instead of the home shell", async () => {
+    const config = JSON.parse(await readFile("public/staticwebapp.config.json", "utf8")) as StaticWebAppConfig;
+    expect(config.navigationFallback).toBeUndefined();
+    expect(config.responseOverrides["404"]?.rewrite).toBe("/404.html");
   });
 });

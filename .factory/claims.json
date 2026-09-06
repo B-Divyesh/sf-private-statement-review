@@ -1,0 +1,170 @@
+[
+  {
+    "id": "csv-import-formats",
+    "claim": "Imports signed-amount CSVs and CSVs with separate debit and credit columns.",
+    "where": "README, import help",
+    "test": "npm run test:claims -- --grep @claim:csv-import-formats",
+    "sandbox": "Fresh browser context at /demo; assert sample signed totals, then import a debit/credit fixture and assert its totals."
+  },
+  {
+    "id": "mapping-memory",
+    "claim": "Remembers column, date-order, and amount-sign choices locally.",
+    "where": "README, mapping form",
+    "test": "npm run test:claims -- --grep @claim:mapping-memory",
+    "sandbox": "Fresh /demo context; import custom headings, start a second import, and assert every saved choice is restored."
+  },
+  {
+    "id": "local-persistence",
+    "claim": "Restores reviews, merchant rules, notes, and checklist state after reload.",
+    "where": "README, privacy page",
+    "test": "npm run test:claims -- --grep @claim:local-persistence",
+    "sandbox": "Fresh /demo context; change a rule, note, and check, reload, and assert all changes remain."
+  },
+  {
+    "id": "merchant-rules",
+    "claim": "Applies explicit merchant cleanup rules without hiding the source description.",
+    "where": "README, Tidy step",
+    "test": "npm run test:claims -- --grep @claim:merchant-rules",
+    "sandbox": "Fresh /demo context; add a rule and assert the resulting merchant, category, and original description."
+  },
+  {
+    "id": "split-purchases",
+    "claim": "Splits a mixed purchase into two category amounts.",
+    "where": "README, Tidy step",
+    "test": "npm run test:claims -- --grep @claim:split-purchases",
+    "sandbox": "Fresh /demo context; split one exact amount and assert both new categories appear in the comparison."
+  },
+  {
+    "id": "repeat-cadences",
+    "claim": "Finds monthly, weekly, and fortnightly repeat-charge candidates.",
+    "where": "README, sample output",
+    "test": "npm run test:claims -- --grep @claim:repeat-cadences",
+    "sandbox": "Fresh /demo context; assert a named sample candidate for each cadence."
+  },
+  {
+    "id": "month-comparison",
+    "claim": "Compares category spending for the newest two imported months.",
+    "where": "README, sample output",
+    "test": "npm run test:claims -- --grep @claim:month-comparison",
+    "sandbox": "Fresh /demo context; assert month names, both spending totals, and a category result."
+  },
+  {
+    "id": "checklist-export",
+    "claim": "Exports the shown review checklist as Markdown.",
+    "where": "README, Finish step",
+    "test": "npm run test:claims -- --grep @claim:checklist-export",
+    "sandbox": "Fresh /demo context; download Markdown and match its checklist row count to the visible list."
+  },
+  {
+    "id": "transaction-export",
+    "claim": "Exports normalized transactions as CSV.",
+    "where": "README, Finish step",
+    "test": "npm run test:claims -- --grep @claim:transaction-export",
+    "sandbox": "Fresh /demo context; download CSV and assert its header, row count, and normalized merchant row."
+  },
+  {
+    "id": "data-backup-controls",
+    "claim": "Exports, validates, restores, and clears local review data.",
+    "where": "README, Finish step, privacy page",
+    "test": "npm run test:claims -- --grep @claim:data-backup-controls",
+    "sandbox": "Fresh /demo context; export a marker, reject invalid JSON, reset, restore the valid backup, then clear it."
+  },
+  {
+    "id": "offline-reload",
+    "claim": "Works offline after the first visit.",
+    "where": "landing facts, README, privacy page",
+    "test": "npm run test:claims -- --grep @claim:offline-reload",
+    "sandbox": "Dedicated fresh browser context at /demo; install the worker, disable the network, reload, and assert saved output and offline status."
+  },
+  {
+    "id": "sample-demo",
+    "claim": "Opens a populated two-month sample without reading or changing real review data.",
+    "where": "landing action, README",
+    "test": "npm run test:claims -- --grep @claim:sample-demo",
+    "sandbox": "Fresh context with a sentinel in the real database; enter /demo in one click, edit and reset it, then assert the real sentinel is unchanged."
+  },
+  {
+    "id": "no-bank-connection",
+    "claim": "Does not connect to a bank or ask for bank credentials.",
+    "where": "landing limits, README",
+    "test": "npm run test:claims -- --grep @claim:no-bank-connection",
+    "sandbox": "Fresh /demo flow; complete repeat-charge output, assert no credential control, and assert all requests remain on origin."
+  },
+  {
+    "id": "no-statement-upload",
+    "claim": "Does not upload statement rows.",
+    "where": "landing limits, README, privacy page",
+    "test": "npm run test:claims -- --grep @claim:no-statement-upload",
+    "sandbox": "Fresh /demo context; import a unique row while recording requests, then assert no request is cross-origin or contains the row."
+  },
+  {
+    "id": "source-csv-default-discard",
+    "claim": "Discards original CSV text after import unless retention is selected.",
+    "where": "README, privacy page, import form",
+    "test": "npm run test:claims -- --grep @claim:source-csv-default-discard",
+    "sandbox": "Fresh /demo context; import with retention unselected and inspect the stored review for the absent sourceCsv field."
+  },
+  {
+    "id": "no-tracking",
+    "claim": "Uses no analytics or tracking.",
+    "where": "README, privacy page",
+    "test": "npm run test:claims -- --grep @claim:no-tracking",
+    "sandbox": "Fresh /demo flow with a request log; assert no request leaves the product origin."
+  },
+  {
+    "id": "license-token-only",
+    "claim": "Sends only the license token during an optional Plus verification request.",
+    "where": "README, privacy page",
+    "test": "npm run test:claims -- --grep @claim:license-token-only",
+    "sandbox": "Fresh /demo context with a recorded fixture response; assert the request is GET with one license query field and no body."
+  },
+  {
+    "id": "no-advice-or-cloud-ai",
+    "claim": "Provides arithmetic observations, not financial advice or cloud categorization.",
+    "where": "landing limits, README, terms",
+    "test": "npm run test:claims -- --grep @claim:no-advice-or-cloud-ai",
+    "sandbox": "Fresh /demo context; export the review warning and assert the workflow makes no model request."
+  },
+  {
+    "id": "free-core",
+    "claim": "Keeps importing, comparisons, checklists, and exports free.",
+    "where": "landing Plus section, README, terms",
+    "test": "npm run test:claims -- --grep @claim:free-core",
+    "sandbox": "Fresh real-data namespace without a license; import two months, compare them, and download an export."
+  },
+  {
+    "id": "plus-price",
+    "claim": "Offers Plus for US $19 once with no subscription; new checkout is unavailable until billing registration completes.",
+    "where": "landing Plus section, Plus dialog, README, terms",
+    "test": "npm run test:claims -- --grep @claim:plus-price",
+    "sandbox": "Fresh landing page; assert exact price and availability copy, then assert there is no link to the currently unavailable checkout."
+  },
+  {
+    "id": "plus-source-retention",
+    "claim": "Lets a Plus user retain an original CSV locally after explicit selection.",
+    "where": "Plus section, README, privacy page",
+    "test": "npm run test:claims -- --grep @claim:plus-source-retention",
+    "sandbox": "Fresh Plus-enabled /demo context; select retention, import, and assert exact source text in the demo database."
+  },
+  {
+    "id": "plus-rule-limit",
+    "claim": "Lets a Plus user save more than five merchant rules.",
+    "where": "Plus section, README, terms",
+    "test": "npm run test:claims -- --grep @claim:plus-rule-limit",
+    "sandbox": "Fresh Plus-enabled /demo context; save six rules and assert all six are present with no limit error."
+  },
+  {
+    "id": "license-restore",
+    "claim": "Restores a Plus license on another browser.",
+    "where": "Plus dialog, README",
+    "test": "npm run test:claims -- --grep @claim:license-restore",
+    "sandbox": "Fresh browser with a recorded verification response; paste a fixture token and assert verified local access."
+  },
+  {
+    "id": "self-hosted-runtime",
+    "claim": "Loads runtime code, fonts, images, and service worker only from the product origin.",
+    "where": "README",
+    "test": "npm run test:claims -- --grep @claim:self-hosted-runtime",
+    "sandbox": "Fresh landing page; record requests and performance resources and assert every origin matches the product."
+  }
+]

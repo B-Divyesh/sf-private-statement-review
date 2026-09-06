@@ -1,49 +1,54 @@
 # Private Statement Review
 
-Private Statement Review is a local-first monthly review for people who download bank CSVs but do not want to connect a bank account or upload financial records. It turns statement rows into a small, repeatable review: tidy merchant names, split mixed purchases, inspect likely recurring charges, compare months, mark a checklist, and export the result.
+Review downloaded bank CSVs for monthly cash flow, repeated charges, and category changes. It is for households that avoid bank links and statement uploads.
 
 Live product: [private-statement-review.sociobot.in](https://private-statement-review.sociobot.in)
 
+One-click sample: [private-statement-review.sociobot.in/demo/](https://private-statement-review.sociobot.in/demo/)
+
 ## What it does
 
-- Imports quoted bank CSVs with either one signed amount column or separate debit/credit columns.
-- Remembers the column mapping and date/sign conventions locally.
-- Stores parsed reviews, merchant rules, splits, notes, and checklists in IndexedDB.
-- Applies explicit “description contains → merchant/category” cleanup rules.
-- Finds likely monthly, weekly, and fortnightly repeat charges from dates and amount consistency.
-- Compares category spending for the newest two imported months.
-- Exports a Markdown checklist, normalized transaction CSV, or complete JSON backup.
-- Installs as a PWA and continues working offline after the first load.
-- Includes a safe two-month sample, so the workflow can be tried without a real statement.
+- Imports signed-amount CSVs and CSVs with separate debit and credit columns.
+- Remembers column, date-order, and amount-sign choices in this browser.
+- Restores reviews, merchant rules, notes, and checklist state after reload.
+- Applies merchant cleanup rules while keeping each source description visible.
+- Splits a mixed purchase into two category amounts.
+- Finds monthly, weekly, and fortnightly repeat-charge candidates.
+- Compares category spending for the newest two months.
+- Exports a Markdown checklist, normalized transaction CSV, or private JSON backup.
+- Validates imported backups and lets you clear local review data.
+- Works offline after the first visit.
 
-It does not connect to banks, accept credentials, upload statements, recommend financial actions, or use cloud AI for categorization.
+The sample uses its own `private-statement-review-demo` IndexedDB database. Resetting or leaving it does not change the normal review database.
 
-## Privacy model
+## Privacy
 
-All CSV parsing and analysis runs in the browser. Parsed reviews are stored only in this browser’s IndexedDB. The original CSV text is discarded after import unless a Plus user explicitly selects local retention. There is no analytics or tracking.
+The app does not connect to banks or ask for bank credentials. It does not upload statement rows, use analytics, or send data to a cloud categorization service.
 
-The only product API request is an optional Plus license verification. It sends the license token to Sociobot, never statement contents, file names, amounts, merchant names, or notes. See [`/privacy`](https://private-statement-review.sociobot.in/privacy/) for the plain-language policy.
+Parsed reviews use IndexedDB in this browser. Original CSV text is discarded after import unless a Plus user selects local retention.
 
-## Plus
+An optional license check sends only the license token to the Sociobot billing API. See the live [privacy page](https://private-statement-review.sociobot.in/privacy/) for details.
 
-The complete review, comparisons, accessibility, checklist, CSV export, and private backup are free. A US $19 one-time Plus license adds:
+The output is an arithmetic review aid, not financial advice.
 
-- opt-in retention of the original CSV on the device;
-- more than five saved merchant cleanup rules;
-- license restoration on the owner’s other devices.
+## Free review and Plus
 
-Checkout and verification use the Sociobot billing API. The product slug is used in the documented checkout route; there is no embedded payment provider or hardcoded payment-provider product ID. Production defaults to `https://api.sociobot.in/api/v1`. For staging, set `VITE_BILLING_BASE_URL=https://pilot-api.sociobot.in/api/v1` at build time.
+Importing, comparisons, checklists, accessibility, exports, and backups are free.
 
-## Develop
+Plus costs US $19 once, with no subscription. It adds optional original-CSV retention and more than five merchant rules. A license can be restored on another browser.
+
+New checkout is unavailable until the external Sociobot billing registration is completed. Existing licenses can still be restored. The requested offer metadata is recorded in `/work/.evidence/billing-offer.json` for the billing operator.
+
+## Run locally
 
 Requirements: Node.js 20 or newer and npm.
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
-The app uses Vite and vanilla TypeScript. It has no runtime dependencies and loads no third-party scripts or fonts.
+The app uses Vite and vanilla TypeScript. Runtime code, fonts, images, and the service worker load only from the product origin.
 
 ## Test and verify
 
@@ -52,27 +57,30 @@ npm ci
 npm run lint
 npm test
 npm run build
-npm run preview -- --host 127.0.0.1
+npm run preview -- --host 127.0.0.1 --port 4173
 npm run verify:browser
 ```
 
-`npm test` covers CSV edge cases, mappings, amount signs, merchant rules, recurring detection, split categories, comparisons, and summaries. `verify:browser` expects the preview server at `http://127.0.0.1:4173`; it runs the full sample workflow in Chromium at 390 px, checks serious/critical Axe findings, tests light and dark themes, verifies direct legal routes and console output, then reloads the saved workspace offline.
+`npm test` runs unit tests and 24 browser claim tests. Every public claim, test command, and sandbox is listed in [`.factory/claims.json`](.factory/claims.json).
 
-The reproducible production command is exactly:
+`npm run verify:browser` expects the production build at `http://127.0.0.1:4173`. Set `PSR_TEST_URL` to check another origin.
+
+## Build and deploy
 
 ```bash
 npm run build
 ```
 
-Static output lands in `dist/`, with `dist/index.html` at its root. Deploy the contents of that directory with clean-URL support for `/privacy/` and `/terms/` (both also have physical `index.html` files).
+Deploy `dist/`. It contains the root app, physical `/demo/`, `/privacy/`, and `/terms/` entries, plus the designed `404.html` and Static Web Apps policy.
 
-## Data ownership and recovery
+## Data recovery
 
-Use **Export private backup** before clearing browser storage or changing devices. **Import backup** accepts the exported version-1 JSON format after schema validation. **Clear all local data** removes reviews, parsed transactions, rules, notes, checklist state, and retained original CSV text from this browser. License state is separate localStorage and can be removed through browser site-data controls.
+Export a private backup before clearing browser storage or changing devices. Import backup accepts the exported version-1 JSON format after validation.
 
-## Project notes
+## Project records
 
-- Product brief: [`.factory/brief.json`](.factory/brief.json)
-- Visual system and generated-art provenance: [`.factory/design.md`](.factory/design.md)
-- Build verification and known gaps: [`.factory/handoff.md`](.factory/handoff.md)
+- Opportunity brief: [`.factory/brief.json`](.factory/brief.json)
+- Visual system and asset provenance: [`.factory/design.md`](.factory/design.md)
+- Demo sandbox: [`.factory/demo.md`](.factory/demo.md)
+- Repair handoff: [`.factory/handoff.md`](.factory/handoff.md)
 - License: [MIT](LICENSE)

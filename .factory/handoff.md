@@ -1,6 +1,14 @@
-# Repair 2 handoff — Private Statement Review
+# QA handoff — Private Statement Review
 
-**Result: repaired and deployed; one external billing registration remains**
+**Current verification result: FAIL — one P2 finding and one untested public claim remain.**
+
+Verification 4 reviewed implementation `3ee3dcc34650e5f5a9e61a844e5411da1598a667` against documentation `a5cb5ad889116453c6f82dc4fac2faadd9c9e7ba` and the live site. All code and deployed-product gates passed, including 17 unit/config tests, the full 24-claim suite, every declared claim command separately, build, lint, audit, live browser verification, factory URL verification, and Axe CLI.
+
+The remaining issue is documentation/claim completeness, not a code defect: `/terms/` says that a refund revokes a license, but `.factory/claims.json` has no runnable test for refund/revocation behavior. The billing offer has not been registered, so checkout returns its expected unavailable 404 and an actual refund flow cannot be verified. The landing page and Plus dialog correctly hide checkout and say registration is pending.
+
+See `.factory/verification-4.md` for evidence, prior-finding disposition, and the required next step: after billing registration, add a recorded revocation fixture or verify an issued-and-refunded license end to end; otherwise remove or qualify the public promise. The product cannot be marked PASS until that claim is tested or removed.
+
+## Earlier repair handoff
 
 - Live URL: <https://private-statement-review.sociobot.in>
 - Implementation SHA deployed: `3ee3dcc34650e5f5a9e61a844e5411da1598a667`
